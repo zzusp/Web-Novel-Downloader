@@ -18,8 +18,8 @@ if requirements_file.exists():
         requirements = [line.strip() for line in f if line.strip() and not line.startswith('#')]
 
 setup(
-    name="Web-Novel-Downloader",
-    version="1.0.0",
+    name="web-novel-downloader",
+    version="0.4.0",
     author="Book Downloader Team",
     author_email="645541506@qq.com",
     description="A tool for downloading novels from web pages with configurable XPath expressions",
@@ -59,8 +59,8 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "book-downloader=scripts.book_downloader:main",
-            "book-scraper=scripts.scraper:main",
+            "web-novel-downloader=scripts.book_downloader:main",
+            "web-novel-scraper=scripts.scraper:main",
         ],
     },
     include_package_data=True,

@@ -95,7 +95,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='book-downloader',
+    name='web-novel-downloader',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -109,7 +109,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=None,
-    version=None,
+    version="0.4.0",
     uac_admin=False,  # Windows: Don't require admin privileges
     uac_uiaccess=False,  # Windows: Don't require UI access
 )

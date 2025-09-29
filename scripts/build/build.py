@@ -8,6 +8,8 @@ import argparse
 import subprocess
 import sys
 import platform
+import re
+import tempfile
 from pathlib import Path
 
 def run_command(cmd, description="", check=True):
@@ -28,6 +30,98 @@ def run_command(cmd, description="", check=True):
         if e.stderr:
             print("Stderr:", e.stderr)
         return False
+
+def validate_version(version):
+    """Validate version format (semantic versioning)."""
+    # Remove 'v' prefix if present
+    if version.startswith('v'):
+        version = version[1:]
+    
+    # Check if version matches semantic versioning pattern
+    pattern = r'^\d+\.\d+\.\d+$'
+    if not re.match(pattern, version):
+        raise ValueError(f"Invalid version format: {version}. Expected format: v0.0.1 or 0.0.1")
+    
+    return version
+
+def update_version_in_file(file_path, version, pattern, replacement):
+    """Update version in a file using regex pattern."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        new_content = re.sub(pattern, replacement, content)
+        
+        if new_content != content:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(new_content)
+            print(f"✅ Updated version in {file_path}")
+            return True
+        else:
+            print(f"⚠️  No version found to update in {file_path}")
+            return False
+    except Exception as e:
+        print(f"❌ Error updating {file_path}: {e}")
+        return False
+
+def update_version(version):
+    """Update version in all relevant files."""
+    print(f"📝 Updating version to {version}...")
+    
+    # Validate version format
+    try:
+        version = validate_version(version)
+    except ValueError as e:
+        print(f"❌ {e}")
+        return False
+    
+    success = True
+    
+    # Update pyproject.toml
+    success &= update_version_in_file(
+        "pyproject.toml",
+        version,
+        r'version = "[^"]*"',
+        f'version = "{version}"'
+    )
+    
+    # Update setup.py
+    success &= update_version_in_file(
+        "setup.py",
+        version,
+        r'version="[^"]*"',
+        f'version="{version}"'
+    )
+    
+    # Update build_win.spec
+    success &= update_version_in_file(
+        "build_win.spec",
+        version,
+        r'version="[^"]*"',
+        f'version="{version}"'
+    )
+    
+    # Update build_macos.spec
+    success &= update_version_in_file(
+        "build_macos.spec",
+        version,
+        r"'CFBundleVersion': '[^']*'",
+        f"'CFBundleVersion': '{version}'"
+    )
+    
+    success &= update_version_in_file(
+        "build_macos.spec",
+        version,
+        r"'CFBundleShortVersionString': '[^']*'",
+        f"'CFBundleShortVersionString': '{version}'"
+    )
+    
+    if success:
+        print(f"✅ Version updated to {version} in all files")
+    else:
+        print(f"❌ Some files failed to update version")
+    
+    return success
 
 def build_packages():
     """Build Python packages (wheel and source distribution)."""
@@ -60,13 +154,13 @@ def build_executable(platform_name):
     """Build executable for specified platform."""
     if platform_name == "windows":
         spec_file = "build_win.spec"
-        exe_name = "book-downloader.exe"
+        exe_name = "web-novel-downloader.exe"
     elif platform_name == "macos":
         if platform.system() != "Darwin":
             print("⚠️  macOS build requires macOS system. Skipping...")
             return True
         spec_file = "build_macos.spec"
-        exe_name = "book-downloader"
+        exe_name = "web-novel-downloader"
     else:
         print(f"❌ Unsupported platform: {platform_name}")
         return False
@@ -91,9 +185,9 @@ def test_executable():
     """Test the created executable."""
     current_platform = platform.system()
     if current_platform == "Windows":
-        exe_path = "dist/book-downloader.exe"
+        exe_path = "dist/web-novel-downloader.exe"
     elif current_platform == "Darwin":
-        exe_path = "dist/book-downloader"
+        exe_path = "dist/web-novel-downloader"
     else:
         print(f"⚠️  Unsupported platform for testing: {current_platform}")
         return True
@@ -119,8 +213,20 @@ def main():
     parser.add_argument("--exe", choices=["windows", "macos", "all"], help="Build executable(s)")
     parser.add_argument("--test", action="store_true", help="Test executable after building")
     parser.add_argument("--all", action="store_true", help="Build everything")
+    parser.add_argument("--version", type=str, help="Set version number (e.g., v0.0.1 or 0.0.1)")
+    parser.add_argument("--version-only", action="store_true", help="Only update version, don't build")
     
     args = parser.parse_args()
+    
+    # Handle version update
+    if args.version:
+        if not update_version(args.version):
+            print("❌ Version update failed!")
+            return 1
+        
+        if args.version_only:
+            print("✅ Version updated successfully!")
+            return 0
     
     if not any([args.packages, args.exe, args.all]):
         parser.print_help()
