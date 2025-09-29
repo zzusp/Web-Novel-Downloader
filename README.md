@@ -412,13 +412,44 @@ black src/ tests/ scripts/
 mypy src/
 ```
 
-### 安装包
+### 构建和安装
 
+#### 开发模式安装
 ```bash
-# 开发模式安装
-pip install -e .
+# 安装开发依赖
+pip install -e ".[dev]"
 
-# 生产模式安装
+# 或使用构建脚本
+python scripts/build/build.py --help
+```
+
+#### 构建包
+```bash
+# 使用构建脚本（推荐）
+python scripts/build/build.py --packages
+
+# 或手动构建
+python -m build
+```
+
+#### 构建可执行文件
+```bash
+# 使用构建脚本（推荐）
+python scripts/build/build.py --exe windows
+
+# 或手动构建
+pyinstaller book_downloader.spec --clean
+
+# 构建所有内容
+python scripts/build/build.py --all
+```
+
+#### 安装包
+```bash
+# 从构建的包安装
+pip install dist/book_downloader-1.0.0-py3-none-any.whl
+
+# 或从源码安装
 pip install .
 ```
 
@@ -442,9 +473,10 @@ pip install .
 
 如果您遇到问题或有建议，请：
 
-1. 查看本文档的故障排除部分
+1. 查看[QUICK_START.md](QUICK_START.md)快速开始指南
 2. 检查[USAGE_GUIDE.md](USAGE_GUIDE.md)获取详细使用说明
-3. 提交Issue描述您的问题
+3. 查看[PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)了解项目结构
+4. 提交Issue描述您的问题
 
 ---
 

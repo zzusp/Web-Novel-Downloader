@@ -4,7 +4,7 @@ Tests for configuration module.
 
 import pytest
 from pathlib import Path
-from book_downloader.config import (
+from src.book_downloader.config import (
     chapters_dir,
     metadata_dir,
     temp_dir,

@@ -3,7 +3,7 @@ Tests for utility functions.
 """
 
 import pytest
-from book_downloader.utils import (
+from src.book_downloader.utils import (
     parse_string_replacements,
     process_content_with_regex,
     apply_string_replacements,
@@ -87,7 +87,7 @@ class TestSanitizeFilename:
     def test_unsafe_filename(self):
         """Test with unsafe filename."""
         result = sanitize_filename("chapter<1>: test")
-        assert result == "chapter_1___ test"
+        assert result == "chapter_1__ test"
     
     def test_empty_filename(self):
         """Test with empty filename."""

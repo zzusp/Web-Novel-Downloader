@@ -9,3 +9,4 @@
 - [x] [2025-09-27] Chapter pagination support for novels with multi-page chapters
 - [x] [2025-09-27] Chapter list pagination support for novels with multi-page chapter lists
 - [x] [2025-09-27] Chapter replace command for post-download string replacements
+- [x] [2025-09-29] Executable build system with Windows and macOS support

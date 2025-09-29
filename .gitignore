@@ -36,7 +36,8 @@ MANIFEST
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
-*.spec
+# Note: build_*.spec files are tracked in git as they are configuration files
+# *.spec
 
 # Installer logs
 pip-log.txt
@@ -141,6 +142,18 @@ temp/
 *.html
 .DS_Store
 Thumbs.db
+
+# Build artifacts (already covered by dist/ but being explicit)
+# Note: scripts/build/ is tracked as it contains source code
+build/
+!scripts/build/
+dist/
+*.egg-info/
+
+# PyInstaller build artifacts
+*.manifest
+warn-*.txt
+xref-*.html
 
 # IDE
 .vscode/
