@@ -10,3 +10,7 @@
 - [x] [2025-09-27] Chapter list pagination support for novels with multi-page chapter lists
 - [x] [2025-09-27] Chapter replace command for post-download string replacements
 - [x] [2025-09-29] Executable build system with Windows and macOS support
+- [x] [2025-09-29] README.md reorganization to separate user and developer content
+- [x] [2025-09-29] Build system version number support (v0.0.1 format)
+- [x] [2025-09-29] Change package name prefix from book_downloader to web-novel-downloader
+- [x] [2025-09-29] Update documentation files with new package names
