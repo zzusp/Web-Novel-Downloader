@@ -109,7 +109,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=None,
-    version="0.4.0",
+    version="0.0.1",
     uac_admin=False,  # Windows: Don't require admin privileges
     uac_uiaccess=False,  # Windows: Don't require UI access
 )

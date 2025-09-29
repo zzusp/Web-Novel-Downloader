@@ -79,6 +79,6 @@ The current package naming uses "book_downloader" as the prefix, but the user wa
 
 ## Testing Results
 - ✅ Package build works correctly with new naming
-- ✅ Generated packages have correct names: `web_novel_downloader-0.4.0`
+- ✅ Generated packages have correct names: `web_novel_downloader-0.0.1`
 - ✅ Entry points work correctly: `web-novel-downloader`, `web-novel-scraper`
 - ✅ All command examples in README updated
