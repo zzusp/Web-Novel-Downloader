@@ -40,7 +40,7 @@
 ### 安装依赖
 
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ### 基本使用
@@ -310,10 +310,13 @@ book-downloader/
 ├── temp/                  # 临时文件目录
 ├── setup.py              # 安装脚本
 ├── pyproject.toml        # 现代Python项目配置
-├── requirements.txt      # 依赖包
+├── build_win.spec       # Windows PyInstaller配置
+├── build_macos.spec     # macOS PyInstaller配置
 ├── README.md            # 说明文档
-├── MODULE_STRUCTURE.md  # 模块结构说明
-└── USAGE_GUIDE.md # 使用指南
+└── docs/                # 文档目录
+    ├── QUICK_START.md   # 快速开始指南
+    ├── USAGE_GUIDE.md   # 使用指南
+    └── PROJECT_STRUCTURE.md # 项目结构说明
 ```
 
 ## 🛠️ 技术特性
@@ -326,10 +329,12 @@ book-downloader/
 - **错误处理**：完善的错误处理和恢复机制
 - **进度显示**：详细的下载进度和状态显示
 - **元数据管理**：智能的章节信息存储和检索
+- **跨平台构建**：支持Windows和macOS可执行文件构建
+- **智能构建系统**：自动回退机制，确保构建成功
 
 ## 📋 依赖包
 
-- `pydoll`：浏览器自动化
+- `pydoll-python`：浏览器自动化
 - `lxml`：HTML/XML解析
 - `asyncio`：异步编程支持（Python内置）
 
@@ -345,7 +350,7 @@ book-downloader/
 - **`cli.py`**：命令行接口和参数解析
 - **`novel_downloader.py`**：主入口文件
 
-这种设计提高了代码的可读性、可维护性和可扩展性。详细说明请参考 `MODULE_STRUCTURE.md`。
+这种设计提高了代码的可读性、可维护性和可扩展性。详细说明请参考 [PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)。
 
 ## 🔍 故障排除
 
@@ -438,7 +443,7 @@ python -m build
 python scripts/build/build.py --exe windows
 
 # 或手动构建
-pyinstaller book_downloader.spec --clean
+pyinstaller build_win.spec --clean
 
 # 构建所有内容
 python scripts/build/build.py --all
@@ -451,6 +456,31 @@ pip install dist/book_downloader-1.0.0-py3-none-any.whl
 
 # 或从源码安装
 pip install .
+```
+
+## 📦 可执行文件
+
+项目提供了预构建的可执行文件，无需安装Python环境即可使用：
+
+### Windows版本
+- **文件**: `dist/book-downloader.exe`
+- **大小**: 约15MB
+- **要求**: Windows 10/11
+- **使用**: 双击运行或命令行调用
+
+### macOS版本
+- **文件**: `dist/book-downloader.app`
+- **大小**: 约15MB
+- **要求**: macOS 10.14+
+- **使用**: 双击运行或命令行调用
+
+### 使用可执行文件
+```bash
+# Windows
+./dist/book-downloader.exe --help
+
+# macOS
+./dist/book-downloader.app/Contents/MacOS/book-downloader --help
 ```
 
 ## 📄 许可证
@@ -473,9 +503,9 @@ pip install .
 
 如果您遇到问题或有建议，请：
 
-1. 查看[QUICK_START.md](QUICK_START.md)快速开始指南
-2. 检查[USAGE_GUIDE.md](USAGE_GUIDE.md)获取详细使用说明
-3. 查看[PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)了解项目结构
+1. 查看[快速开始指南](docs/QUICK_START.md)快速上手
+2. 检查[使用指南](docs/USAGE_GUIDE.md)获取详细使用说明
+3. 查看[项目结构](docs/PROJECT_STRUCTURE.md)了解项目架构
 4. 提交Issue描述您的问题
 
 ---
