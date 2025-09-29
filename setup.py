@@ -19,7 +19,7 @@ if requirements_file.exists():
 
 setup(
     name="web-novel-downloader",
-    version="0.0.1",
+    version="0.0.2",
     author="Book Downloader Team",
     author_email="645541506@qq.com",
     description="A tool for downloading novels from web pages with configurable XPath expressions",

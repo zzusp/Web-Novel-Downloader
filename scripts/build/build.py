@@ -93,13 +93,8 @@ def update_version(version):
         f'version="{version}"'
     )
     
-    # Update build_win.spec
-    success &= update_version_in_file(
-        "build_win.spec",
-        version,
-        r'version="[^"]*"',
-        f'version="{version}"'
-    )
+    # Note: build_win.spec version parameter removed to avoid PyInstaller file path issues
+    # Version information is now handled through the application itself
     
     # Update build_macos.spec
     success &= update_version_in_file(
@@ -150,17 +145,17 @@ def build_packages():
     
     return success
 
-def build_executable(platform_name):
+def build_executable(platform_name, version="0.0.0"):
     """Build executable for specified platform."""
     if platform_name == "windows":
         spec_file = "build_win.spec"
-        exe_name = "web-novel-downloader.exe"
+        exe_name = f"web-novel-downloader-{version}.exe"
     elif platform_name == "macos":
         if platform.system() != "Darwin":
             print("⚠️  macOS build requires macOS system. Skipping...")
             return True
         spec_file = "build_macos.spec"
-        exe_name = "web-novel-downloader"
+        exe_name = f"web-novel-downloader-{version}"
     else:
         print(f"❌ Unsupported platform: {platform_name}")
         return False
@@ -169,6 +164,10 @@ def build_executable(platform_name):
     
     # Clean only PyInstaller build artifacts, preserve specs and scripts
     run_command(["rm", "-rf", "build/book_downloader*"], "Cleaning PyInstaller build artifacts")
+    
+    # Set environment variable for version
+    import os
+    os.environ['BUILD_VERSION'] = version
     
     # Build executable
     success = run_command(["pyinstaller", spec_file, "--clean"], f"Building {platform_name} executable")
@@ -219,10 +218,14 @@ def main():
     args = parser.parse_args()
     
     # Handle version update
+    current_version = "0.0.0"
     if args.version:
         if not update_version(args.version):
             print("❌ Version update failed!")
             return 1
+        
+        # Extract version number for executable naming
+        current_version = validate_version(args.version)
         
         if args.version_only:
             print("✅ Version updated successfully!")
@@ -239,11 +242,11 @@ def main():
     
     if args.all or args.exe:
         if args.exe == "all" or args.all:
-            success &= build_executable("windows")
+            success &= build_executable("windows", current_version)
             if platform.system() == "Darwin":
-                success &= build_executable("macos")
+                success &= build_executable("macos", current_version)
         else:
-            success &= build_executable(args.exe)
+            success &= build_executable(args.exe, current_version)
     
     if args.test and success:
         success &= test_executable()

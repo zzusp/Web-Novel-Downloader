@@ -400,7 +400,7 @@ mypy src/
 #### 构建包
 ```bash
 # 使用构建脚本（推荐）
-python scripts/build/build.py --packages
+python scripts/build/build.py --packages --version v0.0.1
 
 # 或手动构建
 python -m build
@@ -409,7 +409,7 @@ python -m build
 #### 构建可执行文件
 ```bash
 # 使用构建脚本（推荐）
-python scripts/build/build.py --exe windows
+python scripts/build/build.py --exe windows --version v0.0.1
 
 # 或手动构建
 pyinstaller build_win.spec --clean

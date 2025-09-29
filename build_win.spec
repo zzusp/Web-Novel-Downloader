@@ -11,6 +11,10 @@ project_root = Path.cwd()
 src_path = project_root / "src"
 sys.path.insert(0, str(src_path))
 
+# Get version from environment variable or default
+version = os.environ.get('BUILD_VERSION', '0.0.0')
+exe_name = f'web-novel-downloader-{version}'
+
 block_cipher = None
 
 a = Analysis(
@@ -95,7 +99,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='web-novel-downloader',
+    name=exe_name,
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -109,7 +113,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=None,
-    version="0.0.1",
+    version=None,  # Remove version parameter to avoid file path issues
     uac_admin=False,  # Windows: Don't require admin privileges
     uac_uiaccess=False,  # Windows: Don't require UI access
 )
