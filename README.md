@@ -22,11 +22,273 @@
 - **断点续传**：跳过已下载的章节
 - **Cloudflare保护处理**：自动处理反爬虫保护
 
-## 📋 使用前准备
+---
+
+## 🚀 快速开始（普通用户）
+
+### 下载可执行文件
+
+项目提供了预构建的可执行文件，无需安装Python环境即可使用：
+
+#### Windows版本
+- **文件**: `dist/web-novel-downloader.exe`
+- **大小**: 约15MB
+- **要求**: Windows 10/11
+- **使用**: 双击运行或命令行调用
+
+#### macOS版本
+- **文件**: `dist/web-novel-downloader.app`
+- **大小**: 约15MB
+- **要求**: macOS 10.14+
+- **使用**: 双击运行或命令行调用
+
+### 基本使用步骤
+
+#### 1. 解析章节列表
+```bash
+# Windows
+./web-novel-downloader.exe parse --menu-url "https://example.com/novel" --chapter-xpath "//a[@class='chapter-link']" --content-xpath "//div[@class='content']"
+
+# macOS
+./web-novel-downloader.app/Contents/MacOS/web-novel-downloader parse --menu-url "https://example.com/novel" --chapter-xpath "//a[@class='chapter-link']" --content-xpath "//div[@class='content']"
+```
+
+#### 2. 下载章节
+```bash
+# Windows
+./web-novel-downloader.exe download --concurrency 5
+
+# macOS
+./web-novel-downloader.app/Contents/MacOS/web-novel-downloader download --concurrency 5
+```
+
+#### 3. 章节内容字符串替换（可选）
+```bash
+# Windows
+./web-novel-downloader.exe replace --string-replacements "[['<p>',''],['</p>',''],['<div>',''],['</div>','']]"
+
+# macOS
+./web-novel-downloader.app/Contents/MacOS/web-novel-downloader replace --string-replacements "[['<p>',''],['</p>',''],['<div>',''],['</div>','']]"
+```
+
+#### 4. 合并为TXT文件
+```bash
+# Windows
+./web-novel-downloader.exe merge --format txt --output "my_novel.txt" --title "小说标题"
+
+# macOS
+./web-novel-downloader.app/Contents/MacOS/web-novel-downloader merge --format txt --output "my_novel.txt" --title "小说标题"
+```
+
+#### 5. 合并为EPUB文件
+```bash
+# Windows
+./web-novel-downloader.exe merge --format epub --output "my_novel.epub" --title "小说标题" --author "作者名"
+
+# macOS
+./web-novel-downloader.app/Contents/MacOS/web-novel-downloader merge --format epub --output "my_novel.epub" --title "小说标题" --author "作者名"
+```
+
+### 详细使用说明
+
+#### 解析章节 (parse)
+
+解析网站上的章节列表，提取章节链接和标题。
+
+**必需参数**：
+- `--menu-url`：小说目录页URL
+- `--chapter-xpath`：章节链接的XPath表达式
+- `--content-xpath`：章节内容的XPath表达式
+
+**可选参数**：
+- `--chapter-pagination-xpath`：章节内分页的XPath表达式
+- `--chapter-list-pagination-xpath`：章节列表分页的XPath表达式
+- `--content-regex`：内容过滤的正则表达式
+- `--string-replacements`：字符串替换规则（JSON格式）
+- `--proxy`：代理服务器地址
+
+**示例**：
+```bash
+./web-novel-downloader.exe parse \
+  --menu-url "https://www.example.com/book/123456" \
+  --chapter-xpath "(//div[@class='bd'])[2]//ul[@class='list']//li/a" \
+  --content-xpath "//div[@class='page-content']" \
+  --chapter-list-pagination-xpath "//a[contains(text(),'下一页')]" \
+  --string-replacements "[['<p>',''],['</p>',''],['<div>',''],['</div>','']]"
+```
+
+#### 下载章节 (download)
+
+使用已保存的元数据下载章节内容。
+
+> **💡 说明**：此命令完全基于parse命令生成的元数据，无需提供URL或XPath参数。
+
+**可选参数**：
+- `--concurrency`：并发下载数量（默认3）
+- `--proxy`：代理服务器地址
+- `--content-regex`：内容过滤的正则表达式（覆盖元数据中的设置）
+- `--string-replacements`：字符串替换规则（覆盖元数据中的设置）
+- `--chapter-pagination-xpath`：章节内分页的XPath表达式（覆盖元数据中的设置）
+- `--chapter-list-pagination-xpath`：章节列表分页的XPath表达式（覆盖元数据中的设置）
+- `--force-parse`：强制重新解析，即使存在元数据
+
+**示例**：
+```bash
+# 使用元数据下载（推荐）
+./web-novel-downloader.exe download
+
+# 指定并发数量
+./web-novel-downloader.exe download --concurrency 5
+
+# 覆盖字符串替换规则
+./web-novel-downloader.exe download --string-replacements "[['<p>',''],['</p>','']]"
+```
+
+#### 合并章节 (merge)
+
+将下载的章节合并为单个文件。
+
+**必需参数**：
+- `--output`：输出文件名
+
+**可选参数**：
+- `--format`：输出格式（txt/epub，默认txt）
+- `--title`：小说标题
+- `--author`：作者名称（EPUB格式需要）
+
+**示例**：
+```bash
+# 生成TXT文件
+./web-novel-downloader.exe merge --format txt --output "my_novel.txt" --title "我的小说"
+
+# 生成EPUB文件
+./web-novel-downloader.exe merge --format epub --output "my_novel.epub" --title "我的小说" --author "作者名"
+```
+
+#### 字符串替换 (replace)
+
+对已下载的章节文件进行字符串替换。
+
+**必需参数**：
+- `--string-replacements`：替换规则（JSON格式）
+
+> **💡 JSON格式说明**：支持两种格式：
+> - 单引号格式：`[['old1','new1'],['old2','new2']]`
+> - 双引号格式：`[["old1","new1"],["old2","new2"]]`
+
+**可选参数**：
+- `--regex-replacements`：正则表达式替换规则
+- `--case-sensitive`：是否区分大小写（默认False）
+- `--backup`：是否创建备份文件
+- `--dry-run`：预览模式，不实际修改文件
+- `--pattern`：文件匹配模式（默认*.html）
+
+**示例**：
+```bash
+# 基本字符串替换（单引号格式）
+./web-novel-downloader.exe replace --string-replacements "[['<p>',''],['</p>','']]"
+
+# 基本字符串替换（双引号格式）
+./web-novel-downloader.exe replace --string-replacements "[[\"<p>\",\"\"],[\"</p>\",\"\"],[\"<br>\",\"\\n\"]]"
+
+# 预览模式
+./web-novel-downloader.exe replace --string-replacements "[['old','new']]" --dry-run
+
+# 正则表达式替换
+./web-novel-downloader.exe replace --regex-replacements "[['<img[^>]*>','[IMAGE]']]"
+
+# 创建备份
+./web-novel-downloader.exe replace --string-replacements "[['old','new']]" --backup
+```
+
+### 高级功能
+
+#### 分页支持
+
+**章节内分页**：处理跨多页的章节内容
+```bash
+./web-novel-downloader.exe parse \
+  --menu-url "https://example.com/novel" \
+  --chapter-xpath "//a[@class='chapter']" \
+  --content-xpath "//div[@class='content']" \
+  --chapter-pagination-xpath "//a[contains(text(),'下一页')]"
+```
+
+**章节列表分页**：处理多页的章节列表
+```bash
+./web-novel-downloader.exe parse \
+  --menu-url "https://example.com/novel" \
+  --chapter-xpath "//a[@class='chapter']" \
+  --content-xpath "//div[@class='content']" \
+  --chapter-list-pagination-xpath "//a[contains(text(),'下一页')]"
+```
+
+#### 内容过滤
+
+使用正则表达式过滤内容：
+```bash
+./web-novel-downloader.exe parse \
+  --menu-url "https://example.com/novel" \
+  --chapter-xpath "//a[@class='chapter']" \
+  --content-xpath "//div[@class='content']" \
+  --content-regex "第.*?章.*?$"
+```
+
+#### 字符串替换
+
+支持复杂的字符串替换规则：
+```bash
+# 清理HTML标签
+./web-novel-downloader.exe replace \
+  --string-replacements "[['<p>',''],['</p>',''],['<div>',''],['</div>','']]"
+```
+
+### 🔍 故障排除
+
+#### 常见问题
+
+1. **Cloudflare保护**：
+   - 程序会自动处理Cloudflare保护
+   - 如果遇到问题，请等待几分钟后重试
+
+2. **XPath表达式错误**：
+   - 使用浏览器开发者工具检查元素结构
+   - 确保XPath表达式正确匹配目标元素
+
+3. **内容提取失败**：
+   - 检查content-xpath是否正确
+   - 尝试更简单的XPath表达式
+
+4. **EPUB文件问题**：
+   - 确保使用支持EPUB的阅读器
+   - 检查文件是否完整下载
+
+#### 调试技巧
+
+1. **使用dry-run模式**：
+```bash
+./web-novel-downloader.exe replace --string-replacements "[['old','new']]" --dry-run
+```
+
+2. **检查元数据**：
+```bash
+ls chapters/metadata/
+cat chapters/metadata/*.json
+```
+
+3. **查看章节文件**：
+```bash
+ls chapters/
+head -20 chapters/*.html
+```
+
+---
+
+## 🛠️ 开发者指南
 
 ### 技能要求
 
-使用本工具需要具备以下基础知识：
+使用本工具进行开发需要具备以下基础知识：
 
 - **XPath基础**：能够编写XPath表达式来定位HTML元素
 - **HTML基础**：理解HTML结构，能够识别网页元素
@@ -35,17 +297,27 @@
 
 > **💡 提示**：如果不熟悉XPath，建议先学习XPath语法。可以使用浏览器开发者工具的Console标签测试XPath表达式：`$x("your-xpath-here")`
 
-## 🚀 快速开始
+### 开发环境设置
 
-### 安装依赖
+#### 安装依赖
 
 ```bash
 pip install -e .
 ```
 
-### 基本使用
+#### 开发模式安装
 
-#### 方法一：使用脚本（推荐）
+```bash
+# 安装开发依赖
+pip install -e ".[dev]"
+
+# 或使用构建脚本
+python scripts/build/build.py --help
+```
+
+### 使用Python包
+
+#### 方法一：使用脚本
 
 1. **解析章节列表**：
 ```bash
@@ -81,9 +353,9 @@ pip install -e .
 
 2. **使用命令行工具**：
 ```bash
-book-downloader parse --menu-url "https://example.com/novel" --chapter-xpath "//a[@class='chapter-link']" --content-xpath "//div[@class='content']"
-book-downloader download --concurrency 5
-book-downloader merge --format epub --output "my_novel.epub" --title "小说标题" --author "作者名"
+web-novel-downloader parse --menu-url "https://example.com/novel" --chapter-xpath "//a[@class='chapter-link']" --content-xpath "//div[@class='content']"
+web-novel-downloader download --concurrency 5
+web-novel-downloader merge --format epub --output "my_novel.epub" --title "小说标题" --author "作者名"
 ```
 
 #### 方法三：作为Python包使用
@@ -103,183 +375,94 @@ import asyncio
 asyncio.run(downloader.download_novel("https://example.com/novel"))
 ```
 
-## 📖 详细使用说明
+### 开发工具
 
-### 1. 解析章节 (parse)
-
-解析网站上的章节列表，提取章节链接和标题。
+#### 运行测试
 
 ```bash
-python scripts/book_downloader.py parse [选项]
+pytest
 ```
 
-**必需参数**：
-- `--menu-url`：小说目录页URL
-- `--chapter-xpath`：章节链接的XPath表达式
-- `--content-xpath`：章节内容的XPath表达式
-
-**可选参数**：
-- `--chapter-pagination-xpath`：章节内分页的XPath表达式
-- `--chapter-list-pagination-xpath`：章节列表分页的XPath表达式
-- `--content-regex`：内容过滤的正则表达式
-- `--string-replacements`：字符串替换规则（JSON格式）
-- `--proxy`：代理服务器地址
-
-**示例**：
-```bash
-python scripts/book_downloader.py parse \
-  --menu-url "https://www.example.com/book/123456" \
-  --chapter-xpath "(//div[@class='bd'])[2]//ul[@class='list']//li/a" \
-  --content-xpath "//div[@class='page-content']" \
-  --chapter-list-pagination-xpath "//a[contains(text(),'下一页')]" \
-  --string-replacements "[['<p>',''],['</p>',''],['<div>',''],['</div>','']]"
-```
-
-### 2. 下载章节 (download)
-
-使用已保存的元数据下载章节内容。
+#### 代码格式化
 
 ```bash
-python scripts/book_downloader.py download [选项]
+black src/ tests/ scripts/
 ```
 
-> **💡 说明**：此命令完全基于parse命令生成的元数据，无需提供URL或XPath参数。
-
-**可选参数**：
-- `--concurrency`：并发下载数量（默认3）
-- `--proxy`：代理服务器地址
-- `--content-regex`：内容过滤的正则表达式（覆盖元数据中的设置）
-- `--string-replacements`：字符串替换规则（覆盖元数据中的设置）
-- `--chapter-pagination-xpath`：章节内分页的XPath表达式（覆盖元数据中的设置）
-- `--chapter-list-pagination-xpath`：章节列表分页的XPath表达式（覆盖元数据中的设置）
-- `--force-parse`：强制重新解析，即使存在元数据
-
-**示例**：
-```bash
-# 使用元数据下载（推荐）
-python scripts/book_downloader.py download
-
-# 指定并发数量
-python scripts/book_downloader.py download --concurrency 5
-
-# 覆盖字符串替换规则
-python scripts/book_downloader.py download --string-replacements "[['<p>',''],['</p>','']]"
-```
-
-### 3. 合并章节 (merge)
-
-将下载的章节合并为单个文件。
+#### 类型检查
 
 ```bash
-python scripts/book_downloader.py merge [选项]
+mypy src/
 ```
 
-**必需参数**：
-- `--output`：输出文件名
+### 构建和安装
 
-**可选参数**：
-- `--format`：输出格式（txt/epub，默认txt）
-- `--title`：小说标题
-- `--author`：作者名称（EPUB格式需要）
-
-**示例**：
+#### 构建包
 ```bash
-# 生成TXT文件
-python scripts/book_downloader.py merge --format txt --output "my_novel.txt" --title "我的小说"
+# 使用构建脚本（推荐）
+python scripts/build/build.py --packages
 
-# 生成EPUB文件
-python scripts/book_downloader.py merge --format epub --output "my_novel.epub" --title "我的小说" --author "作者名"
+# 或手动构建
+python -m build
 ```
 
-### 4. 字符串替换 (replace)
-
-对已下载的章节文件进行字符串替换。
-
+#### 构建可执行文件
 ```bash
-python scripts/book_downloader.py replace [选项]
+# 使用构建脚本（推荐）
+python scripts/build/build.py --exe windows
+
+# 或手动构建
+pyinstaller build_win.spec --clean
+
+# 构建所有内容
+python scripts/build/build.py --all
 ```
 
-**必需参数**：
-- `--string-replacements`：替换规则（JSON格式）
-
-> **💡 JSON格式说明**：支持两种格式：
-> - 单引号格式：`[['old1','new1'],['old2','new2']]`
-> - 双引号格式：`[["old1","new1"],["old2","new2"]]`
-
-**可选参数**：
-- `--regex-replacements`：正则表达式替换规则
-- `--case-sensitive`：是否区分大小写（默认False）
-- `--backup`：是否创建备份文件
-- `--dry-run`：预览模式，不实际修改文件
-- `--pattern`：文件匹配模式（默认*.html）
-
-**示例**：
+#### 安装包
 ```bash
-# 基本字符串替换（单引号格式）
-python scripts/book_downloader.py replace --string-replacements "[['<p>',''],['</p>','']]"
+# 从构建的包安装
+pip install dist/book_downloader-1.0.0-py3-none-any.whl
 
-# 基本字符串替换（双引号格式）
-python scripts/book_downloader.py replace --string-replacements "[[\"<p>\",\"\"],[\"</p>\",\"\"],[\"<br>\",\"\\n\"]]"
-
-# 预览模式
-python scripts/book_downloader.py replace --string-replacements "[['old','new']]" --dry-run
-
-# 正则表达式替换
-python scripts/book_downloader.py replace --regex-replacements "[['<img[^>]*>','[IMAGE]']]"
-
-# 创建备份
-python scripts/book_downloader.py replace --string-replacements "[['old','new']]" --backup
+# 或从源码安装
+pip install .
 ```
 
-## 🔧 高级功能
+### 项目架构
 
-### 分页支持
+#### 技术特性
 
-#### 章节内分页
-处理跨多页的章节内容：
+- **模块化架构**：代码拆分为多个模块，提高可读性和可维护性
+- **异步处理**：使用asyncio实现高效的异步下载
+- **浏览器自动化**：基于pydoll的浏览器自动化，支持JavaScript渲染
+- **XPath解析**：使用lxml进行精确的HTML解析
+- **EPUB标准**：完全符合EPUB 2.0标准，支持各种电子书阅读器
+- **错误处理**：完善的错误处理和恢复机制
+- **进度显示**：详细的下载进度和状态显示
+- **元数据管理**：智能的章节信息存储和检索
+- **跨平台构建**：支持Windows和macOS可执行文件构建
+- **智能构建系统**：自动回退机制，确保构建成功
 
-```bash
-python scripts/book_downloader.py parse \
-  --menu-url "https://example.com/novel" \
-  --chapter-xpath "//a[@class='chapter']" \
-  --content-xpath "//div[@class='content']" \
-  --chapter-pagination-xpath "//a[contains(text(),'下一页')]"
-```
+#### 依赖包
 
-#### 章节列表分页
-处理多页的章节列表：
+- `pydoll-python`：浏览器自动化
+- `lxml`：HTML/XML解析
+- `asyncio`：异步编程支持（Python内置）
 
-```bash
-python scripts/book_downloader.py parse \
-  --menu-url "https://example.com/novel" \
-  --chapter-xpath "//a[@class='chapter']" \
-  --content-xpath "//div[@class='content']" \
-  --chapter-list-pagination-xpath "//a[contains(text(),'下一页')]"
-```
+#### 模块架构
 
-### 内容过滤
+项目采用模块化设计，将原来的单一文件拆分为多个功能模块：
 
-使用正则表达式过滤内容：
+- **`config.py`**：配置和常量管理
+- **`utils.py`**：通用工具函数
+- **`metadata.py`**：章节元数据管理
+- **`epub_generator.py`**：EPUB文件生成
+- **`core.py`**：核心下载功能（NovelDownloader类）
+- **`cli.py`**：命令行接口和参数解析
+- **`novel_downloader.py`**：主入口文件
 
-```bash
-python scripts/book_downloader.py parse \
-  --menu-url "https://example.com/novel" \
-  --chapter-xpath "//a[@class='chapter']" \
-  --content-xpath "//div[@class='content']" \
-  --content-regex "第.*?章.*?$"
-```
+这种设计提高了代码的可读性、可维护性和可扩展性。详细说明请参考 [PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)。
 
-### 字符串替换
-
-支持复杂的字符串替换规则：
-
-```bash
-# 清理HTML标签
-python scripts/book_downloader.py replace \
-  --string-replacements "[['<p>',''],['</p>',''],['<div>',''],['</div>','']]"
-```
-
-## 📁 项目结构
+#### 项目结构
 
 ```
 book-downloader/
@@ -319,179 +502,11 @@ book-downloader/
     └── PROJECT_STRUCTURE.md # 项目结构说明
 ```
 
-## 🛠️ 技术特性
-
-- **模块化架构**：代码拆分为多个模块，提高可读性和可维护性
-- **异步处理**：使用asyncio实现高效的异步下载
-- **浏览器自动化**：基于pydoll的浏览器自动化，支持JavaScript渲染
-- **XPath解析**：使用lxml进行精确的HTML解析
-- **EPUB标准**：完全符合EPUB 2.0标准，支持各种电子书阅读器
-- **错误处理**：完善的错误处理和恢复机制
-- **进度显示**：详细的下载进度和状态显示
-- **元数据管理**：智能的章节信息存储和检索
-- **跨平台构建**：支持Windows和macOS可执行文件构建
-- **智能构建系统**：自动回退机制，确保构建成功
-
-## 📋 依赖包
-
-- `pydoll-python`：浏览器自动化
-- `lxml`：HTML/XML解析
-- `asyncio`：异步编程支持（Python内置）
-
-## 🏗️ 模块架构
-
-项目采用模块化设计，将原来的单一文件拆分为多个功能模块：
-
-- **`config.py`**：配置和常量管理
-- **`utils.py`**：通用工具函数
-- **`metadata.py`**：章节元数据管理
-- **`epub_generator.py`**：EPUB文件生成
-- **`core.py`**：核心下载功能（NovelDownloader类）
-- **`cli.py`**：命令行接口和参数解析
-- **`novel_downloader.py`**：主入口文件
-
-这种设计提高了代码的可读性、可维护性和可扩展性。详细说明请参考 [PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)。
-
-## 🔍 故障排除
-
-### 常见问题
-
-1. **Cloudflare保护**：
-   - 程序会自动处理Cloudflare保护
-   - 如果遇到问题，请等待几分钟后重试
-
-2. **XPath表达式错误**：
-   - 使用浏览器开发者工具检查元素结构
-   - 确保XPath表达式正确匹配目标元素
-
-3. **内容提取失败**：
-   - 检查content-xpath是否正确
-   - 尝试更简单的XPath表达式
-
-4. **EPUB文件问题**：
-   - 确保使用支持EPUB的阅读器
-   - 检查文件是否完整下载
-
-### 调试技巧
-
-1. **使用dry-run模式**：
-```bash
-python scripts/book_downloader.py replace --string-replacements "[['old','new']]" --dry-run
-```
-
-2. **检查元数据**：
-```bash
-ls chapters/metadata/
-cat chapters/metadata/*.json
-```
-
-3. **查看章节文件**：
-```bash
-ls chapters/
-head -20 chapters/*.html
-```
-
-## 🧪 开发
-
-### 安装开发依赖
-
-```bash
-pip install -e ".[dev]"
-```
-
-### 运行测试
-
-```bash
-pytest
-```
-
-### 代码格式化
-
-```bash
-black src/ tests/ scripts/
-```
-
-### 类型检查
-
-```bash
-mypy src/
-```
-
-### 构建和安装
-
-#### 开发模式安装
-```bash
-# 安装开发依赖
-pip install -e ".[dev]"
-
-# 或使用构建脚本
-python scripts/build/build.py --help
-```
-
-#### 构建包
-```bash
-# 使用构建脚本（推荐）
-python scripts/build/build.py --packages
-
-# 或手动构建
-python -m build
-```
-
-#### 构建可执行文件
-```bash
-# 使用构建脚本（推荐）
-python scripts/build/build.py --exe windows
-
-# 或手动构建
-pyinstaller build_win.spec --clean
-
-# 构建所有内容
-python scripts/build/build.py --all
-```
-
-#### 安装包
-```bash
-# 从构建的包安装
-pip install dist/book_downloader-1.0.0-py3-none-any.whl
-
-# 或从源码安装
-pip install .
-```
-
-## 📦 可执行文件
-
-项目提供了预构建的可执行文件，无需安装Python环境即可使用：
-
-### Windows版本
-- **文件**: `dist/book-downloader.exe`
-- **大小**: 约15MB
-- **要求**: Windows 10/11
-- **使用**: 双击运行或命令行调用
-
-### macOS版本
-- **文件**: `dist/book-downloader.app`
-- **大小**: 约15MB
-- **要求**: macOS 10.14+
-- **使用**: 双击运行或命令行调用
-
-### 使用可执行文件
-```bash
-# Windows
-./dist/book-downloader.exe --help
-
-# macOS
-./dist/book-downloader.app/Contents/MacOS/book-downloader --help
-```
-
-## 📄 许可证
-
-本项目采用MIT许可证。
-
-## 🤝 贡献
+### 贡献
 
 欢迎提交Issue和Pull Request来改进这个项目。
 
-### 贡献指南
+#### 贡献指南
 
 1. Fork 本仓库
 2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
@@ -499,7 +514,7 @@ pip install .
 4. 推送到分支 (`git push origin feature/amazing-feature`)
 5. 打开 Pull Request
 
-## 📞 支持
+### 支持
 
 如果您遇到问题或有建议，请：
 
@@ -509,6 +524,10 @@ pip install .
 4. 提交Issue描述您的问题
 
 ---
+
+## 📄 许可证
+
+本项目采用MIT许可证。
 
 ## ⚠️ 免责声明
 

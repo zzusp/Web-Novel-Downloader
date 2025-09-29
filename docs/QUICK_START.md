@@ -25,23 +25,23 @@ python scripts/build/build.py --all
 python -m build
 
 # 构建Windows可执行文件
-pyinstaller book_downloader.spec --clean
+pyinstaller build_win.spec --clean
 ```
 
 ## 📦 安装和使用
 
 ### 安装Python包
 ```bash
-pip install dist/book_downloader-1.0.0-py3-none-any.whl
-book-downloader --help
+pip install dist/web_novel_downloader-1.0.0-py3-none-any.whl
+web-novel-downloader --help
 ```
 
 ### 使用可执行文件
 ```bash
 # Windows
-dist\book-downloader.exe --help
-dist\book-downloader.exe parse <URL>
-dist\book-downloader.exe download <book_id>
+dist\web-novel-downloader.exe --help
+dist\web-novel-downloader.exe parse <URL>
+dist\web-novel-downloader.exe download <book_id>
 ```
 
 ## 🛠️ 开发环境设置

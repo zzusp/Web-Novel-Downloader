@@ -32,17 +32,17 @@ Web-Novel-Downloader/
 │       ├── 2025-09-27-*.md
 │       └── 2025-09-29-*.md
 ├── dist/                          # 构建输出目录
-│   ├── book-downloader.exe        # Windows可执行文件
-│   ├── book_downloader-1.0.0-py3-none-any.whl
-│   └── book_downloader-1.0.0.tar.gz
+│   ├── web-novel-downloader.exe   # Windows可执行文件
+│   ├── web_novel_downloader-1.0.0-py3-none-any.whl
+│   └── web_novel_downloader-1.0.0.tar.gz
 ├── build/                         # 临时构建目录（自动生成）
 ├── *.egg-info/                    # 包信息目录（自动生成）
 ├── pyproject.toml                 # 现代Python项目配置
 ├── setup.py                       # 传统Python包配置
 ├── requirements.txt               # 依赖列表
 ├── MANIFEST.in                    # 包含文件清单
-├── book_downloader.spec           # PyInstaller Windows配置
-├── book_downloader_macos.spec     # PyInstaller macOS配置
+├── build_win.spec                # PyInstaller Windows配置
+├── build_macos.spec              # PyInstaller macOS配置
 ├── README.md                      # 项目说明
 ├── USAGE_GUIDE.md                 # 使用指南
 ├── QUICK_START.md                 # 快速开始指南
@@ -84,7 +84,7 @@ python -m build
 python scripts/build/build.py --exe windows    # Windows
 python scripts/build/build.py --exe macos      # macOS
 # 或手动构建
-pyinstaller book_downloader.spec --clean
+pyinstaller build_win.spec --clean
 
 # 构建所有内容
 python scripts/build/build.py --all
@@ -100,9 +100,9 @@ rm -rf build/ dist/ *.egg-info/
 - **源码包** (`.tar.gz`) - 源码分发
 
 ### 可执行文件
-- **Windows** - `book-downloader.exe`
-- **macOS** - `book-downloader`
-- **Linux** - `book-downloader`（需要Linux系统构建）
+- **Windows** - `web-novel-downloader.exe`
+- **macOS** - `web-novel-downloader`
+- **Linux** - `web-novel-downloader`（需要Linux系统构建）
 
 ## 🔧 开发工具
 
@@ -156,10 +156,10 @@ python scripts/build/build.py --packages
 ### 最终用户
 ```bash
 # 安装Python包
-pip install dist/book_downloader-1.0.0-py3-none-any.whl
+pip install dist/web_novel_downloader-1.0.0-py3-none-any.whl
 
 # 或使用可执行文件
-./dist/book-downloader --help
+./dist/web-novel-downloader --help
 ```
 
 ## 📚 文档结构

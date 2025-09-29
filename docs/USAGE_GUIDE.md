@@ -70,7 +70,7 @@ python scripts/book_downloader.py <command> [options]
 pip install -e .
 
 # 使用命令行工具
-book-downloader <command> [options]
+web-novel-downloader <command> [options]
 ```
 
 ### 可用命令
