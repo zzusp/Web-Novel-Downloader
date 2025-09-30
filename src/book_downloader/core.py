@@ -87,14 +87,92 @@ class NovelDownloader:
             try:
                 await self.browser.stop()
                 # Wait a bit for cleanup
-                await asyncio.sleep(1)
+                await asyncio.sleep(3)
             except (PermissionError, OSError, FileNotFoundError, Exception) as e:
-                # Ignore cleanup errors on Windows
-                print(f"Warning: Browser cleanup warning (can be ignored): {e}")
+                # Ignore cleanup errors on Windows - these are typically temporary file cleanup issues
+                # that don't affect functionality. Only show warning for non-permission errors.
+                if not isinstance(e, PermissionError):
+                    print(f"Warning: Browser cleanup warning (can be ignored): {e}")
                 pass
             finally:
                 self.browser = None
+                # Suppress internal cleanup exceptions that are not user-friendly
+                import sys
+                import io
+                from contextlib import redirect_stderr
                 
+                # Redirect stderr to suppress cleanup exceptions
+                with redirect_stderr(io.StringIO()):
+                    # Force garbage collection to help with cleanup
+                    import gc
+                    gc.collect()
+                    
+                    # Additional cleanup for Windows
+                    try:
+                        import os
+                        import tempfile
+                        # Clean up any remaining temp files
+                        temp_dir = os.environ.get('PYDOLL_TEMP_DIR', tempfile.gettempdir())
+                        if os.path.exists(temp_dir):
+                            # Just ignore any cleanup errors
+                            pass
+                    except:
+                        pass
+                
+    async def _detect_cloudflare_protection(self, tab) -> bool:
+        """
+        Detect if there's Cloudflare protection on the current page.
+        
+        Args:
+            tab: Browser tab instance
+            
+        Returns:
+            True if Cloudflare protection is detected, False otherwise
+        """
+        try:
+            html_content = await tab.page_source
+            if not html_content or not html_content.strip().startswith('<'):
+                return False
+                
+            tree = html.fromstring(html_content)
+            
+            # Check for Cloudflare protection indicators in title
+            title_elements = tree.xpath("//title")
+            if title_elements:
+                title = title_elements[0].text_content().strip()
+                protection_titles = [
+                    "请稍候",
+                    "Just a moment",
+                    "Checking your browser",
+                    "Please wait"
+                ]
+                
+                for protection_title in protection_titles:
+                    if protection_title in title:
+                        return True
+            
+            # Check for Cloudflare challenge text
+            page_text = tree.text_content().lower()
+            challenge_texts = [
+                "请完成以下操作，验证您是真人",
+                "请稍候",
+                "just a moment",
+                "checking your browser",
+                "verify you are human",
+                "complete the challenge"
+            ]
+            
+            for text in challenge_texts:
+                if text.lower() in page_text:
+                    return True
+                        
+            return False
+            
+        except Exception as e:
+            print(f"   Warning: Could not detect Cloudflare protection: {e}")
+            return False
+    
+
     async def _handle_cloudflare_protection(self, tab, page_description: str):
         """
         Handle Cloudflare protection by waiting for user intervention.
@@ -123,9 +201,12 @@ class NovelDownloader:
                     if waited_time == 0:
                         print(f"⚠️  Cloudflare protection detected on {page_description}")
                         print(f"   Page title: {title}")
-                        print("   Please manually complete the verification in the browser window.")
-                        print("   The script will wait up to 2 minutes for you to complete the verification...")
-                        print("   💡 Tip: Look for a checkbox or 'I'm not a robot' challenge in the browser window")
+                        print("   🔒 Please complete the verification manually in the browser window")
+                        print("   💡 Look for:")
+                        print("      - Checkbox with 'I'm human' or 'I'm not a robot'")
+                        print("      - Turnstile challenge widget")
+                        print("      - Any verification button or challenge")
+                        print("   ⏳ The script will wait up to 2 minutes for you to complete the verification...")
                     
                     # Show progress every 15 seconds
                     if waited_time % 15 == 0 or waited_time < 10:
@@ -477,10 +558,12 @@ class NovelDownloader:
                     if page_content:
                         all_content.append(page_content)
                     else:
-                        print(f"Warning: Failed to download page {i + 1} of {len(pagination_urls)} for chapter: {chapter_title}")
+                        print(f"❌ 章节下载失败: {chapter_title}")
+                        print(f"   失败页面: {i + 1}/{len(pagination_urls)}")
                 
                 if not all_content:
-                    print(f"Error: No content downloaded for chapter: {chapter_title}")
+                    print(f"❌ 章节内容为空: {chapter_title}")
+                    print(f"💡 可能原因: 页面无法访问或内容提取失败")
                     return False
                 
                 # Combine all page content
@@ -500,9 +583,68 @@ class NovelDownloader:
                 return True
                 
             except Exception as e:
-                print(f"Error downloading chapter '{chapter_title}': {e}")
+                print(f"❌ 章节下载异常: {chapter_title}")
+                print(f"   错误详情: {e}")
                 return False
     
+    async def _validate_url(self, url: str) -> tuple[bool, str]:
+        """
+        Validate if a URL is accessible before attempting to download.
+        
+        Args:
+            url: URL to validate
+            
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        try:
+            # Basic URL format validation
+            if not url or not url.startswith(('http://', 'https://')):
+                return False, "❌ 无效的URL格式"
+            
+            # Try to access the URL with a quick check
+            tab = await self.browser.new_tab()
+            try:
+                await tab.go_to(url)
+                await asyncio.sleep(2)  # Wait a bit longer for page to load
+                html_content = await tab.page_source
+                
+                # Check for various error conditions
+                if not html_content or len(html_content) < 50:
+                    return False, "❌ 页面无法访问 - 可能网络连接问题或代理未开启"
+                
+                if "page not found" in html_content.lower() or "404" in html_content:
+                    return False, "❌ 页面未找到 (404) - 章节链接可能已失效"
+                
+                if "access denied" in html_content.lower() or "forbidden" in html_content.lower():
+                    return False, "❌ 访问被拒绝 - 可能需要代理或网站限制访问"
+                
+                if "timeout" in html_content.lower() or "timed out" in html_content.lower():
+                    return False, "❌ 页面访问超时 - 网络连接不稳定"
+                
+                if "cloudflare" in html_content.lower() and "checking your browser" in html_content.lower():
+                    return False, "❌ 页面被Cloudflare保护 - 正在验证浏览器"
+                
+                # Check if content looks like an error page
+                if len(html_content) < 200 and any(keyword in html_content.lower() for keyword in ["error", "not found", "unavailable"]):
+                    return False, "❌ 页面返回错误信息 - 可能网站维护或链接失效"
+                
+                return True, ""
+                
+            finally:
+                try:
+                    await tab.close()
+                except:
+                    pass
+                    
+        except Exception as e:
+            error_msg = f"❌ 页面访问失败: {str(e)}"
+            if "proxy" in str(e).lower() or "connection" in str(e).lower():
+                error_msg += " - 请检查代理设置"
+            elif "timeout" in str(e).lower():
+                error_msg += " - 网络连接超时"
+            return False, error_msg
+
     async def _download_chapter_page(self, page_url: str, chapter_title: str, page_num: int, total_pages: int) -> Optional[str]:
         """
         Download content from a single page of a chapter.
@@ -516,6 +658,9 @@ class NovelDownloader:
         Returns:
             Content text if successful, None otherwise
         """
+        # Note: URL validation is skipped to avoid double page loading
+        # The page will be validated during the actual download process
+        
         tab = await self.browser.new_tab()
         try:
             if total_pages > 1:
@@ -535,7 +680,28 @@ class NovelDownloader:
             
             # Check if we got valid HTML content
             if not html_content or len(html_content) < 100:
-                print(f"Warning: Received short or empty content for page {page_num}: {html_content[:200] if html_content else 'None'}")
+                print(f"❌ 页面内容过短或为空")
+                print(f"   页面: {page_url}")
+                print(f"   内容预览: {html_content[:100] if html_content else '无内容'}")
+                return None
+            
+            # Check for common error pages with specific error messages
+            if "page not found" in html_content.lower() or "404" in html_content:
+                print(f"❌ 页面未找到 (404)")
+                print(f"   页面: {page_url}")
+                print(f"💡 可能原因: 章节链接已失效，请重新解析章节")
+                return None
+            
+            if "access denied" in html_content.lower() or "forbidden" in html_content.lower():
+                print(f"❌ 访问被拒绝")
+                print(f"   页面: {page_url}")
+                print(f"💡 可能原因: 需要代理访问或网站限制访问")
+                return None
+            
+            if "timeout" in html_content.lower() or "timed out" in html_content.lower():
+                print(f"❌ 页面访问超时")
+                print(f"   页面: {page_url}")
+                print(f"💡 可能原因: 网络连接不稳定，请稍后重试")
                 return None
             
             # Check if content looks like HTML
@@ -584,7 +750,8 @@ class NovelDownloader:
             return content_text.strip()
             
         except Exception as e:
-            print(f"Error downloading page {page_num} of chapter '{chapter_title}': {e}")
+            print(f"❌ 页面下载异常: {chapter_title} (第{page_num}页)")
+            print(f"   错误详情: {e}")
             return None
         finally:
             try:

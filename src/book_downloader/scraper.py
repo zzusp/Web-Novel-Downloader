@@ -47,6 +47,16 @@ async def main():
             # Ignore cleanup errors on Windows - they don't affect functionality
             # These are typically temporary file cleanup issues
             pass
+        
+        # Suppress internal cleanup exceptions that are not user-friendly
+        import sys
+        import io
+        from contextlib import redirect_stderr
+        
+        with redirect_stderr(io.StringIO()):
+            # Force cleanup
+            import gc
+            gc.collect()
 
 if __name__ == "__main__":
     import contextlib

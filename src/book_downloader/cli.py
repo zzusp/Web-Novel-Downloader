@@ -289,9 +289,16 @@ async def execute_parse_command(args):
             await downloader.stop_browser()
         except Exception as e:
             print(f"Warning: Error stopping browser: {e}")
-        # Force cleanup
-        import gc
-        gc.collect()
+        
+        # Suppress internal cleanup exceptions that are not user-friendly
+        import sys
+        import io
+        from contextlib import redirect_stderr
+        
+        with redirect_stderr(io.StringIO()):
+            # Force cleanup
+            import gc
+            gc.collect()
 
 
 async def execute_download_command(args):
@@ -351,6 +358,12 @@ async def execute_download_command(args):
         
     except Exception as e:
         print(f"❌ Error during download: {e}")
+        print("\n💡 故障排除建议:")
+        print("   1. 检查网站是否可以在浏览器中正常访问")
+        print("   2. 确认代理设置是否正确 (如果使用代理)")
+        print("   3. 尝试重新运行 'parse' 命令刷新章节链接")
+        print("   4. 检查小说URL是否已更改")
+        print("   5. 确认网络连接是否正常")
         import traceback
         traceback.print_exc()
     finally:
@@ -358,9 +371,16 @@ async def execute_download_command(args):
             await downloader.stop_browser()
         except Exception as e:
             print(f"Warning: Error stopping browser: {e}")
-        # Force cleanup
-        import gc
-        gc.collect()
+        
+        # Suppress internal cleanup exceptions that are not user-friendly
+        import sys
+        import io
+        from contextlib import redirect_stderr
+        
+        with redirect_stderr(io.StringIO()):
+            # Force cleanup
+            import gc
+            gc.collect()
 
 
 def execute_merge_command(args):
