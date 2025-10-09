@@ -14,3 +14,8 @@
 - [x] [2025-09-29] Build system version number support (v0.0.1 format)
 - [x] [2025-09-29] Change package name prefix from book_downloader to web-novel-downloader
 - [x] [2025-09-29] Update documentation files with new package names
+- [x] [2025-10-09] Remove specific parameters from download command to clarify functionality scope
+- [x] [2025-10-09] Remove string-replacements parameter from parse command to clarify functionality scope
+- [x] [2025-10-09] Organize downloaded chapters by metadata hash to separate different novels
+- [x] [2025-10-09] Update replace and merge commands to work with new chapter organization
+- [x] [2025-10-09] Add required metadata-file parameter to download, replace, and merge commands
