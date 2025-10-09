@@ -19,6 +19,7 @@
   - TXT：纯文本格式
   - EPUB：标准电子书格式，支持目录导航
 - **元数据管理**：自动保存和加载章节信息
+- **章节组织**：按元数据哈希组织章节文件到 `chapters_<hash>/` 目录
 - **断点续传**：跳过已下载的章节
 - **Cloudflare保护处理**：自动处理反爬虫保护
 
@@ -56,37 +57,37 @@
 #### 2. 下载章节
 ```bash
 # Windows
-./web-novel-downloader.exe download --concurrency 5
+./web-novel-downloader.exe download --metadata-file chapters/metadata/chapters_<hash>.json --concurrency 5
 
 # macOS
-./web-novel-downloader.app/Contents/MacOS/web-novel-downloader download --concurrency 5
+./web-novel-downloader.app/Contents/MacOS/web-novel-downloader download --metadata-file chapters/metadata/chapters_<hash>.json --concurrency 5
 ```
 
 #### 3. 章节内容字符串替换（可选）
 ```bash
 # Windows
-./web-novel-downloader.exe replace --string-replacements "[['<p>',''],['</p>',''],['<div>',''],['</div>','']]"
+./web-novel-downloader.exe replace --metadata-file chapters/metadata/chapters_<hash>.json --string-replacements "[['<p>',''],['</p>',''],['<div>',''],['</div>','']]"
 
 # macOS
-./web-novel-downloader.app/Contents/MacOS/web-novel-downloader replace --string-replacements "[['<p>',''],['</p>',''],['<div>',''],['</div>','']]"
+./web-novel-downloader.app/Contents/MacOS/web-novel-downloader replace --metadata-file chapters/metadata/chapters_<hash>.json --string-replacements "[['<p>',''],['</p>',''],['<div>',''],['</div>','']]"
 ```
 
 #### 4. 合并为TXT文件
 ```bash
 # Windows
-./web-novel-downloader.exe merge --format txt --output "my_novel.txt" --title "小说标题"
+./web-novel-downloader.exe merge --metadata-file chapters/metadata/chapters_<hash>.json --format txt --output "my_novel.txt" --title "小说标题"
 
 # macOS
-./web-novel-downloader.app/Contents/MacOS/web-novel-downloader merge --format txt --output "my_novel.txt" --title "小说标题"
+./web-novel-downloader.app/Contents/MacOS/web-novel-downloader merge --metadata-file chapters/metadata/chapters_<hash>.json --format txt --output "my_novel.txt" --title "小说标题"
 ```
 
 #### 5. 合并为EPUB文件
 ```bash
 # Windows
-./web-novel-downloader.exe merge --format epub --output "my_novel.epub" --title "小说标题" --author "作者名"
+./web-novel-downloader.exe merge --metadata-file chapters/metadata/chapters_<hash>.json --format epub --output "my_novel.epub" --title "小说标题" --author "作者名"
 
 # macOS
-./web-novel-downloader.app/Contents/MacOS/web-novel-downloader merge --format epub --output "my_novel.epub" --title "小说标题" --author "作者名"
+./web-novel-downloader.app/Contents/MacOS/web-novel-downloader merge --metadata-file chapters/metadata/chapters_<hash>.json --format epub --output "my_novel.epub" --title "小说标题" --author "作者名"
 ```
 
 ### 详细使用说明
@@ -121,27 +122,24 @@
 
 使用已保存的元数据下载章节内容。
 
-> **💡 说明**：此命令完全基于parse命令生成的元数据，无需提供URL或XPath参数。
+**必需参数**：
+- `--metadata-file`：指定要使用的 `chapters_<hash>.json` 元数据文件路径（支持相对路径）
 
 **可选参数**：
 - `--concurrency`：并发下载数量（默认3）
 - `--proxy`：代理服务器地址
 - `--content-regex`：内容过滤的正则表达式（覆盖元数据中的设置）
-- `--string-replacements`：字符串替换规则（覆盖元数据中的设置）
-- `--chapter-pagination-xpath`：章节内分页的XPath表达式（覆盖元数据中的设置）
-- `--chapter-list-pagination-xpath`：章节列表分页的XPath表达式（覆盖元数据中的设置）
-- `--force-parse`：强制重新解析，即使存在元数据
 
 **示例**：
 ```bash
-# 使用元数据下载（推荐）
-./web-novel-downloader.exe download
+# 使用元数据文件下载
+./web-novel-downloader.exe download --metadata-file chapters/metadata/chapters_879584cc.json
 
 # 指定并发数量
-./web-novel-downloader.exe download --concurrency 5
+./web-novel-downloader.exe download --metadata-file chapters/metadata/chapters_879584cc.json --concurrency 5
 
-# 覆盖字符串替换规则
-./web-novel-downloader.exe download --string-replacements "[['<p>',''],['</p>','']]"
+# 使用代理下载
+./web-novel-downloader.exe download --metadata-file chapters/metadata/chapters_879584cc.json --proxy 127.0.0.1:10808
 ```
 
 #### 合并章节 (merge)
@@ -149,6 +147,7 @@
 将下载的章节合并为单个文件。
 
 **必需参数**：
+- `--metadata-file`：指定要使用的 `chapters_<hash>.json` 元数据文件路径（支持相对路径）
 - `--output`：输出文件名
 
 **可选参数**：
@@ -159,10 +158,10 @@
 **示例**：
 ```bash
 # 生成TXT文件
-./web-novel-downloader.exe merge --format txt --output "my_novel.txt" --title "我的小说"
+./web-novel-downloader.exe merge --metadata-file chapters/metadata/chapters_879584cc.json --format txt --output "my_novel.txt" --title "我的小说"
 
 # 生成EPUB文件
-./web-novel-downloader.exe merge --format epub --output "my_novel.epub" --title "我的小说" --author "作者名"
+./web-novel-downloader.exe merge --metadata-file chapters/metadata/chapters_879584cc.json --format epub --output "my_novel.epub" --title "我的小说" --author "作者名"
 ```
 
 #### 字符串替换 (replace)
@@ -170,6 +169,7 @@
 对已下载的章节文件进行字符串替换。
 
 **必需参数**：
+- `--metadata-file`：指定要使用的 `chapters_<hash>.json` 元数据文件路径（支持相对路径）
 - `--string-replacements`：替换规则（JSON格式）
 
 > **💡 JSON格式说明**：支持两种格式：
@@ -186,19 +186,19 @@
 **示例**：
 ```bash
 # 基本字符串替换（单引号格式）
-./web-novel-downloader.exe replace --string-replacements "[['<p>',''],['</p>','']]"
+./web-novel-downloader.exe replace --metadata-file chapters/metadata/chapters_879584cc.json --string-replacements "[['<p>',''],['</p>','']]"
 
 # 基本字符串替换（双引号格式）
-./web-novel-downloader.exe replace --string-replacements "[[\"<p>\",\"\"],[\"</p>\",\"\"],[\"<br>\",\"\\n\"]]"
+./web-novel-downloader.exe replace --metadata-file chapters/metadata/chapters_879584cc.json --string-replacements "[[\"<p>\",\"\"],[\"</p>\",\"\"],[\"<br>\",\"\\n\"]]"
 
 # 预览模式
-./web-novel-downloader.exe replace --string-replacements "[['old','new']]" --dry-run
+./web-novel-downloader.exe replace --metadata-file chapters/metadata/chapters_879584cc.json --string-replacements "[['old','new']]" --dry-run
 
 # 正则表达式替换
-./web-novel-downloader.exe replace --regex-replacements "[['<img[^>]*>','[IMAGE]']]"
+./web-novel-downloader.exe replace --metadata-file chapters/metadata/chapters_879584cc.json --regex-replacements "[['<img[^>]*>','[IMAGE]']]"
 
 # 创建备份
-./web-novel-downloader.exe replace --string-replacements "[['old','new']]" --backup
+./web-novel-downloader.exe replace --metadata-file chapters/metadata/chapters_879584cc.json --string-replacements "[['old','new']]" --backup
 ```
 
 ### 高级功能
@@ -326,22 +326,22 @@ python scripts/book_downloader.py parse --menu-url "https://example.com/novel" -
 
 2. **下载章节**：
 ```bash
-python scripts/book_downloader.py download --concurrency 5
+python scripts/book_downloader.py download --metadata-file chapters/metadata/chapters_879584cc.json --concurrency 5
 ```
 
 3. **章节内容字符串替换（可选）**：
 ```bash
-python scripts/book_downloader.py replace --string-replacements "[['<p>',''],['</p>',''],['<div>',''],['</div>','']]"
+python scripts/book_downloader.py replace --metadata-file chapters/metadata/chapters_879584cc.json --string-replacements "[['<p>',''],['</p>',''],['<div>',''],['</div>','']]"
 ```
 
 4. **合并为TXT文件**：
 ```bash
-python scripts/book_downloader.py merge --format txt --output "my_novel.txt" --title "小说标题"
+python scripts/book_downloader.py merge --metadata-file chapters/metadata/chapters_879584cc.json --format txt --output "my_novel.txt" --title "小说标题"
 ```
 
 5. **合并为EPUB文件**：
 ```bash
-python scripts/book_downloader.py merge --format epub --output "my_novel.epub" --title "小说标题" --author "作者名"
+python scripts/book_downloader.py merge --metadata-file chapters/metadata/chapters_879584cc.json --format epub --output "my_novel.epub" --title "小说标题" --author "作者名"
 ```
 
 #### 方法二：安装为包后使用
@@ -354,8 +354,8 @@ pip install -e .
 2. **使用命令行工具**：
 ```bash
 web-novel-downloader parse --menu-url "https://example.com/novel" --chapter-xpath "//a[@class='chapter-link']" --content-xpath "//div[@class='content']"
-web-novel-downloader download --concurrency 5
-web-novel-downloader merge --format epub --output "my_novel.epub" --title "小说标题" --author "作者名"
+web-novel-downloader download --metadata-file chapters/metadata/chapters_879584cc.json --concurrency 5
+web-novel-downloader merge --metadata-file chapters/metadata/chapters_879584cc.json --format epub --output "my_novel.epub" --title "小说标题" --author "作者名"
 ```
 
 #### 方法三：作为Python包使用
@@ -489,7 +489,10 @@ book-downloader/
 │   └── development-progress.md
 ├── chapters/              # 章节文件目录
 │   ├── metadata/         # 元数据存储
-│   └── *.html           # 下载的章节文件
+│   │   └── chapters_<hash>.json  # 章节元数据文件
+│   ├── chapters_<hash>/  # 按元数据哈希组织的章节目录
+│   │   └── *.html        # 下载的章节文件
+│   └── chapters_<other_hash>/  # 其他小说的章节目录
 ├── temp/                  # 临时文件目录
 ├── setup.py              # 安装脚本
 ├── pyproject.toml        # 现代Python项目配置
@@ -518,10 +521,9 @@ book-downloader/
 
 如果您遇到问题或有建议，请：
 
-1. 查看[快速开始指南](docs/QUICK_START.md)快速上手
-2. 检查[使用指南](docs/USAGE_GUIDE.md)获取详细使用说明
-3. 查看[项目结构](docs/PROJECT_STRUCTURE.md)了解项目架构
-4. 提交Issue描述您的问题
+1. 查看[使用指南](docs/USAGE_GUIDE.md)获取详细使用说明
+2. 查看[项目结构](docs/PROJECT_STRUCTURE.md)了解项目架构
+3. 提交Issue描述您的问题
 
 ---
 

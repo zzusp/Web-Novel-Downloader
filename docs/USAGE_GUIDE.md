@@ -99,7 +99,6 @@ python scripts/book_downloader.py parse --menu-url "<网站URL>" --chapter-xpath
 - `--chapter-pagination-xpath`：章节内分页的XPath表达式
 - `--chapter-list-pagination-xpath`：章节列表分页的XPath表达式
 - `--content-regex`：内容过滤的正则表达式
-- `--string-replacements`：字符串替换规则（JSON格式）
 - `--proxy`：代理服务器地址
 
 ### 示例
@@ -109,8 +108,7 @@ python scripts/book_downloader.py parse \
   --menu-url "https://www.example.com/book/123456" \
   --chapter-xpath "(//div[@class='bd'])[2]//ul[@class='list']//li/a" \
   --content-xpath "//div[@class='page-content']" \
-  --chapter-list-pagination-xpath "//a[contains(text(),'下一页')]" \
-  --string-replacements '["<img src=\"/path/to/image.png\">", "replacement"]'
+  --chapter-list-pagination-xpath "//a[contains(text(),'下一页')]"
 ```
 
 ### 输出
@@ -133,40 +131,44 @@ Found 95 chapters on page 1
 ### 基本用法
 
 ```bash
-python scripts/book_downloader.py download
+python scripts/book_downloader.py download --metadata-file chapters/metadata/chapters_<hash>.json
 ```
+
+### 必需参数
+
+- `--metadata-file`：指定要使用的 `chapters_<hash>.json` 元数据文件路径（支持相对路径）
 
 ### 可选参数
 
 - `--concurrency N`：并发下载数量（默认3）
 - `--proxy <proxy>`：代理服务器（如：127.0.0.1:10808）
 - `--content-regex`：内容过滤的正则表达式（覆盖元数据中的设置）
-- `--string-replacements`：字符串替换规则（覆盖元数据中的设置）
-- `--chapter-pagination-xpath`：章节内分页的XPath表达式（覆盖元数据中的设置）
-- `--chapter-list-pagination-xpath`：章节列表分页的XPath表达式（覆盖元数据中的设置）
-- `--force-parse`：强制重新解析，即使存在元数据
 
 ### 示例
 
 ```bash
-python scripts/book_downloader.py download --concurrency 5
+# 使用元数据文件下载
+python scripts/book_downloader.py download --metadata-file chapters/metadata/chapters_879584cc.json --concurrency 5
+
+# 使用相对路径
+python scripts/book_downloader.py download --metadata-file ./chapters/metadata/chapters_879584cc.json --concurrency 5
 ```
 
 ### 功能特性
 
 - **基于元数据**：完全基于parse命令生成的元数据进行下载
+- **章节组织**：章节文件按元数据哈希组织到 `chapters_<hash>/` 目录
 - **并发下载**：同时下载多个章节，提高效率
 - **断点续传**：自动跳过已下载的章节
 - **分页支持**：处理跨多页的章节内容
 - **Cloudflare保护**：自动检测并处理反爬虫保护
 - **错误处理**：详细的错误日志和恢复机制
-- **参数覆盖**：支持在下载时覆盖元数据中的设置
 
 ### 输出
 
 命令执行后会：
-1. 读取之前保存的章节元数据
-2. 并发下载章节内容到 `chapters/` 目录
+1. 读取指定的章节元数据文件
+2. 并发下载章节内容到 `chapters_<hash>/` 目录
 3. 显示下载进度和统计信息
 
 **示例输出：**
@@ -182,13 +184,17 @@ python scripts/book_downloader.py download --concurrency 5
 ### 基本用法
 
 ```bash
-python scripts/book_downloader.py replace --string-replacements "[['old1','new1'],['old2','new2']]"
+python scripts/book_downloader.py replace --metadata-file chapters/metadata/chapters_<hash>.json --string-replacements "[['old1','new1'],['old2','new2']]"
 ```
 
-### 命令选项
+### 必需参数
 
-- `--string-replacements`：字符串替换规则（JSON格式，必需）
-- `--regex-replacements`：正则表达式替换规则（JSON格式，可选）
+- `--metadata-file`：指定要使用的 `chapters_<hash>.json` 元数据文件路径（支持相对路径）
+- `--string-replacements`：字符串替换规则（JSON格式）
+
+### 可选参数
+
+- `--regex-replacements`：正则表达式替换规则（JSON格式）
 - `--case-sensitive`：字符串替换是否区分大小写（默认不区分）
 - `--backup`：替换前创建备份文件
 - `--dry-run`：预览模式，不实际替换
@@ -202,6 +208,7 @@ python scripts/book_downloader.py replace --string-replacements "[['old1','new1'
 
 ```bash
 python scripts/book_downloader.py replace \
+  --metadata-file chapters/metadata/chapters_879584cc.json \
   --string-replacements '[["Hello","Hi"],["hello","hi"]，["<img src=\"/path/to/image.png\">", "replacement"]]'
 ```
 
@@ -211,6 +218,7 @@ python scripts/book_downloader.py replace \
 
 ```bash
 python scripts/book_downloader.py replace \
+  --metadata-file chapters/metadata/chapters_879584cc.json \
   --string-replacements '[["Hello","Hi"],["hello","hi"]，["<img src=\"/path/to/image.png\">", "replacement"]]' \
   --dry-run
 ```
@@ -296,12 +304,16 @@ python scripts/book_downloader.py replace \
 ### 基本用法
 
 ```bash
-python scripts/book_downloader.py merge --output "<文件名>" --title "<标题>"
+python scripts/book_downloader.py merge --metadata-file chapters/metadata/chapters_<hash>.json --output "<文件名>" --title "<标题>"
 ```
 
-### 命令选项
+### 必需参数
 
-- `--output`：输出文件名（必需）
+- `--metadata-file`：指定要使用的 `chapters_<hash>.json` 元数据文件路径（支持相对路径）
+- `--output`：输出文件名
+
+### 可选参数
+
 - `--title`：小说标题（默认：Downloaded Novel）
 - `--format`：输出格式 - `txt` 或 `epub`（默认：txt）
 - `--author`：作者名称（EPUB格式需要）
@@ -312,19 +324,19 @@ python scripts/book_downloader.py merge --output "<文件名>" --title "<标题>
 #### 1. 生成TXT文件
 
 ```bash
-python scripts/book_downloader.py merge --output "my_novel.txt" --title "我的小说"
+python scripts/book_downloader.py merge --metadata-file chapters/metadata/chapters_879584cc.json --output "my_novel.txt" --title "我的小说"
 ```
 
 #### 2. 生成EPUB文件
 
 ```bash
-python scripts/book_downloader.py merge --format epub --output "my_novel.epub" --title "我的小说" --author "作者名"
+python scripts/book_downloader.py merge --metadata-file chapters/metadata/chapters_879584cc.json --format epub --output "my_novel.epub" --title "我的小说" --author "作者名"
 ```
 
 #### 3. 按倒序合并章节
 
 ```bash
-python scripts/book_downloader.py merge --output "my_novel.txt" --title "我的小说" --reverse
+python scripts/book_downloader.py merge --metadata-file chapters/metadata/chapters_879584cc.json --output "my_novel.txt" --title "我的小说" --reverse
 ```
 
 ### 输出格式说明
@@ -557,9 +569,9 @@ ls chapters/
 head -20 chapters/*.html
 ```
 
-4. **强制重新解析**：
+4. **重新解析章节**：
 ```bash
-python scripts/book_downloader.py download --force-parse
+python scripts/book_downloader.py parse --menu-url "<URL>" --chapter-xpath "<XPath>" --content-xpath "<XPath>"
 ```
 
 ## 📊 完整工作流程示例
@@ -576,24 +588,29 @@ python scripts/book_downloader.py parse \
 
 # 2. 下载章节内容
 python scripts/book_downloader.py download \
+  --metadata-file chapters/metadata/chapters_879584cc.json \
   --concurrency 5
 
 # 3. 替换图片标签为文字（预览模式）
 python scripts/book_downloader.py replace \
+  --metadata-file chapters/metadata/chapters_879584cc.json \
   --string-replacements '["<img src=\"/path/to/image.png\">", "replacement"]' \
   --dry-run
 
 # 4. 实际替换（创建备份）
 python scripts/book_downloader.py replace \
+  --metadata-file chapters/metadata/chapters_879584cc.json \
   --string-replacements '["<img src=\"/path/to/image.png\">", "replacement"]' \
   --backup
 
 # 5. 清理HTML标签
 python scripts/book_downloader.py replace \
+  --metadata-file chapters/metadata/chapters_879584cc.json \
   --string-replacements "[['<p>',''],['</p>',''],['<br>','\\n']]"
 
 # 6. 生成EPUB文件
 python scripts/book_downloader.py merge \
+  --metadata-file chapters/metadata/chapters_879584cc.json \
   --format epub \
   --output "noval.epub" \
   --title "noval" \
