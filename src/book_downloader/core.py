@@ -7,10 +7,12 @@ Contains the main NovelDownloader class and related functionality.
 import asyncio
 import re
 from pathlib import Path
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Optional, Dict, Any, cast
 from urllib.parse import urljoin
 from lxml import html
 from pydoll.browser import Chrome
+from pydoll.constants import By
+from pydoll.elements.web_element import WebElement
 
 from .config import chapters_dir, CLOUDFLARE_MAX_WAIT_TIME, CLOUDFLARE_CHECK_INTERVAL
 from .utils import process_content_with_regex, apply_string_replacements, sanitize_filename
@@ -215,12 +217,30 @@ class NovelDownloader:
                     await asyncio.sleep(check_interval)
                     waited_time += check_interval
                     
-                    # Enable automatic Cloudflare Turnstile captcha bypass
+                    # # Enable automatic Cloudflare Turnstile captcha bypass
+                    # try:
+                    #     async with tab.expect_and_bypass_cloudflare_captcha(
+                    #         custom_selector=(By.XPATH, '//p[contains(@class, "h2") and contains(@class, "spacer-bottom")]//following-sibling::div[1]//div'),
+                    #         time_before_click=2, time_to_wait_captcha=5):
+                    #         print(f"   ✅ Successfully bypassed Cloudflare Turnstile captcha")
+                    #     # await tab._bypass_cloudflare(event=None, custom_selector=(By.XPATH, '//p[contains(@class, "h2") and contains(@class, "spacer-bottom")]//following-sibling::div[1]//div'), time_before_click=2, time_to_wait_captcha=5)
+                    # except Exception as e:
+                    #     print(f"   ⚠️ Failed to automatically bypass Cloudflare Turnstile captcha. {e}")
                     try:
-                        await tab.expect_and_bypass_cloudflare_captcha(custom_selector=(By.XPATH, '//p[contains(@class, "h2") and contains(@class, "spacer-bottom")]//following-sibling::div'), time_before_click=5, time_to_wait_captcha=5)
-                        print(f"   ✅ Successfully bypassed Cloudflare Turnstile captcha")
-                    except Exception as e:
-                        print(f"   ⚠️ Failed to automatically bypass Cloudflare Turnstile captcha. {e}")
+                        selector = (By.XPATH, '//p[contains(@class, "h2") and contains(@class, "spacer-bottom")]//following-sibling::div[1]//div')
+                        element = await tab.find_or_wait_element(
+                            *selector, timeout=5, raise_exc=False
+                        )
+                        print(f"   ✅ Find Cloudflare Turnstile captcha element: {element}")
+                        element = cast(WebElement, element)
+                        if element:
+                            # adjust the external div size to shadow root width (usually 300px)
+                            await tab.execute_script('argument.style="width: 300px"', element)
+                            await asyncio.sleep(5)
+                            await element.click()
+                            print(f"   ✅ Successfully bypassed Cloudflare Turnstile captcha")
+                    except Exception as exc:
+                        print(f"   ⚠️ Error in cloudflare bypass: {exc}")
                 else:
                     # Title doesn't indicate Cloudflare protection, we're good
                     if waited_time > 0:
@@ -525,7 +545,7 @@ class NovelDownloader:
                 print(f"Warning: Could not close tab cleanly: {e}")
                 pass
             
-    async def download_chapter(self, chapter_url: str, chapter_title: str, base_url: str) -> bool:
+    async def download_chapter(self, chapter_url: str, chapter_title: str, base_url: str, metadata_hash: str = None) -> bool:
         """
         Download a single chapter, handling pagination if configured.
         
@@ -533,13 +553,23 @@ class NovelDownloader:
             chapter_url: URL of the chapter
             chapter_title: Title of the chapter
             base_url: Base URL for relative link resolution
+            metadata_hash: Hash of the metadata file to organize chapters by source
             
         Returns:
             True if successful, False otherwise
         """
         # Sanitize filename - use only the chapter title
         safe_title = sanitize_filename(chapter_title)
-        chapter_file = chapters_dir / f"{safe_title}.html"
+        
+        # Create organized directory structure based on metadata hash
+        if metadata_hash:
+            # Create subdirectory for this metadata hash
+            hash_dir = chapters_dir / f"chapters_{metadata_hash}"
+            hash_dir.mkdir(exist_ok=True)
+            chapter_file = hash_dir / f"{safe_title}.html"
+        else:
+            # Fallback to original behavior for backward compatibility
+            chapter_file = chapters_dir / f"{safe_title}.html"
         
         # Check if chapter already exists
         if chapter_file.exists():
@@ -856,6 +886,13 @@ class NovelDownloader:
             
             print(f"📚 Found {len(chapters)} chapters total")
             
+            # Get metadata hash for organizing chapters
+            metadata_hash = self.metadata_manager.get_metadata_hash(menu_url)
+            if metadata_hash:
+                print(f"📁 Organizing chapters in directory: chapters_{metadata_hash}/")
+            else:
+                print("📁 No metadata hash found, using default chapters directory")
+            
             # Show first few chapters for debugging
             print("📖 First 5 chapters:")
             for i, chapter_info in enumerate(chapters[:5]):
@@ -878,7 +915,7 @@ class NovelDownloader:
                     # Old format without index
                     chapter_url, chapter_title = chapter_info
                 
-                task = self.download_chapter(chapter_url, chapter_title, menu_url)
+                task = self.download_chapter(chapter_url, chapter_title, menu_url, metadata_hash)
                 tasks.append(task)
                 
             print("⏳ Waiting for download tasks to complete...")

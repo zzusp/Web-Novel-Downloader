@@ -29,7 +29,7 @@ DEFAULT_FORMAT = "txt"
 
 # Cloudflare protection settings
 CLOUDFLARE_MAX_WAIT_TIME = 120  # Maximum wait time in seconds (2 minutes)
-CLOUDFLARE_CHECK_INTERVAL = 3   # Check every 3 seconds
+CLOUDFLARE_CHECK_INTERVAL = 5   # Check every 3 seconds
 
 # File patterns
 DEFAULT_FILE_PATTERN = "*.html"

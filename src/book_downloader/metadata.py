@@ -24,6 +24,30 @@ class MetadataManager:
         # Create a hash of the URL for consistent filename
         url_hash = hashlib.md5(menu_url.encode('utf-8')).hexdigest()[:8]
         return f"chapters_{url_hash}.json"
+    
+    def _extract_hash_from_filename(self, filename: str) -> str:
+        """Extract hash from metadata filename."""
+        # Extract hash from filename like "chapters_879584cc.json"
+        if filename.startswith("chapters_") and filename.endswith(".json"):
+            return filename[9:-5]  # Remove "chapters_" prefix and ".json" suffix
+        return ""
+    
+    def get_metadata_hash(self, menu_url: str) -> Optional[str]:
+        """
+        Get the hash for a given menu URL's metadata file.
+        
+        Args:
+            menu_url: URL of the novel's menu page
+            
+        Returns:
+            Hash string if metadata file exists, None otherwise
+        """
+        filename = self._generate_metadata_filename(menu_url)
+        metadata_file = self.metadata_dir / filename
+        
+        if metadata_file.exists():
+            return self._extract_hash_from_filename(filename)
+        return None
         
     def save_chapter_metadata(self, menu_url: str, chapters: List[Tuple[str, str]], 
                             chapter_xpath: str, content_xpath: str, 

@@ -37,7 +37,7 @@ class TestConfig:
         assert DEFAULT_FORMAT == "txt"
         assert DEFAULT_FILE_PATTERN == "*.html"
         assert CLOUDFLARE_MAX_WAIT_TIME == 120
-        assert CLOUDFLARE_CHECK_INTERVAL == 3
+        assert CLOUDFLARE_CHECK_INTERVAL == 5
     
     def test_directory_structure(self):
         """Test that directory structure is correct."""
