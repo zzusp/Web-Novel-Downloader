@@ -214,6 +214,13 @@ class NovelDownloader:
                     
                     await asyncio.sleep(check_interval)
                     waited_time += check_interval
+                    
+                    # Enable automatic Cloudflare Turnstile captcha bypass
+                    try:
+                        await tab.expect_and_bypass_cloudflare_captcha(custom_selector=(By.XPATH, '//p[contains(@class, "h2") and contains(@class, "spacer-bottom")]//following-sibling::div'), time_before_click=5, time_to_wait_captcha=5)
+                        print(f"   ✅ Successfully bypassed Cloudflare Turnstile captcha")
+                    except Exception as e:
+                        print(f"   ⚠️ Failed to automatically bypass Cloudflare Turnstile captcha. {e}")
                 else:
                     # Title doesn't indicate Cloudflare protection, we're good
                     if waited_time > 0:
