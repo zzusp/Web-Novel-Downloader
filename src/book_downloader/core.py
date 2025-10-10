@@ -174,6 +174,41 @@ class NovelDownloader:
             print(f"   Warning: Could not detect Cloudflare protection: {e}")
             return False
     
+    async def _attempt_cloudflare_bypass(self, tab):
+        """
+        Attempt to automatically bypass Cloudflare Turnstile captcha.
+        
+        Args:
+            tab: Browser tab instance
+        """
+        # # Enable automatic Cloudflare Turnstile captcha bypass
+        # try:
+        #     async with tab.expect_and_bypass_cloudflare_captcha(
+        #         custom_selector=(By.XPATH, '//p[contains(@class, "h2") and contains(@class, "spacer-bottom")]//following-sibling::div[1]//div'),
+        #         time_before_click=2, time_to_wait_captcha=5):
+        #         print(f"   ✅ Successfully bypassed Cloudflare Turnstile captcha")
+        #     # await tab._bypass_cloudflare(event=None, custom_selector=(By.XPATH, '//p[contains(@class, "h2") and contains(@class, "spacer-bottom")]//following-sibling::div[1]//div'), time_before_click=2, time_to_wait_captcha=5)
+        # except Exception as e:
+        #     print(f"   ⚠️ Failed to automatically bypass Cloudflare Turnstile captcha. {e}")
+        print(f"   ⏳ Attempting to automatically bypass Cloudflare Turnstile captcha...")
+        try:
+            selector = (By.XPATH, '//input[@name="cf-turnstile-response"]//parent::div')
+            element = await tab.find_or_wait_element(
+                *selector, timeout=1, raise_exc=False
+            )
+            print(f"   ✅ Find Cloudflare Turnstile captcha element: {element}")
+            # print(f"   ✅ Cloudflare Turnstile captcha element type: {type(element)}")
+            if element:
+                if isinstance(element, list):
+                    element = element[0]
+                element = cast(WebElement, element)
+                # adjust the external div size to shadow root width (usually 300px)
+                await tab.execute_script('argument.style="width: 300px"', element)
+                # await asyncio.sleep(5)
+                await element.click(x_offset=-130)
+                print(f"   ✅ Click input checkbox")
+        except Exception as exc:
+            print(f"   ⚠️ Error in cloudflare bypass: {exc}")
 
     async def _handle_cloudflare_protection(self, tab, page_description: str):
         """
@@ -217,30 +252,8 @@ class NovelDownloader:
                     await asyncio.sleep(check_interval)
                     waited_time += check_interval
                     
-                    # # Enable automatic Cloudflare Turnstile captcha bypass
-                    # try:
-                    #     async with tab.expect_and_bypass_cloudflare_captcha(
-                    #         custom_selector=(By.XPATH, '//p[contains(@class, "h2") and contains(@class, "spacer-bottom")]//following-sibling::div[1]//div'),
-                    #         time_before_click=2, time_to_wait_captcha=5):
-                    #         print(f"   ✅ Successfully bypassed Cloudflare Turnstile captcha")
-                    #     # await tab._bypass_cloudflare(event=None, custom_selector=(By.XPATH, '//p[contains(@class, "h2") and contains(@class, "spacer-bottom")]//following-sibling::div[1]//div'), time_before_click=2, time_to_wait_captcha=5)
-                    # except Exception as e:
-                    #     print(f"   ⚠️ Failed to automatically bypass Cloudflare Turnstile captcha. {e}")
-                    try:
-                        selector = (By.XPATH, '//p[contains(@class, "h2") and contains(@class, "spacer-bottom")]//following-sibling::div[1]//div')
-                        element = await tab.find_or_wait_element(
-                            *selector, timeout=5, raise_exc=False
-                        )
-                        print(f"   ✅ Find Cloudflare Turnstile captcha element: {element}")
-                        element = cast(WebElement, element)
-                        if element:
-                            # adjust the external div size to shadow root width (usually 300px)
-                            await tab.execute_script('argument.style="width: 300px"', element)
-                            await asyncio.sleep(5)
-                            await element.click()
-                            print(f"   ✅ Successfully bypassed Cloudflare Turnstile captcha")
-                    except Exception as exc:
-                        print(f"   ⚠️ Error in cloudflare bypass: {exc}")
+                    # Attempt automatic Cloudflare Turnstile captcha bypass
+                    await self._attempt_cloudflare_bypass(tab)
                 else:
                     # Title doesn't indicate Cloudflare protection, we're good
                     if waited_time > 0:
