@@ -1,0 +1,53 @@
+{
+  "version": "1.0",
+  "task_name": "Example Site Novel Download",
+  "description": "Configuration for downloading novels from example.com",
+  
+  "browser": {
+    "chrome_path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "headless": false,
+    "proxy": null
+  },
+  
+  "novel": {
+    "menu_url": "https://juejin.cn/",
+    "title": "文章榜",
+    "author": "juejin",
+    "output_filename": "juejin_article_rank"
+  },
+  
+  "parsing": {
+    "hash": "juejin",
+    "chapter_xpath": "//div[@id='wechat-assets__home-top-right']//following-sibling::div[1]//ul[@class='hot-item-body']//a[@class='title-articles']",
+    "content_xpath": "//div[@id='article-root']//div[contains(@class,'article-viewer')]",
+    "chapter_pagination_xpath": null,
+    "chapter_list_pagination_xpath": null,
+    "content_regex": null
+  },
+  
+  "downloading": {
+    "concurrency": 3,
+    "content_regex": null
+  },
+  
+  "processing": {
+    "string_replacements": [
+      ["<p>", ""],
+      ["</p>", ""],
+      ["<br>", "\n"]
+    ],
+    "regex_replacements": [
+      ["<img[^>]*>", "[IMAGE]"],
+      ["\\s+", " "]
+    ],
+    "case_sensitive": false,
+    "backup_enabled": false,
+    "file_pattern": "*.html"
+  },
+  
+  "merging": {
+    "format": "epub",
+    "reverse_order": false,
+    "output_directory": "~/Downloads/Novels"
+  }
+}
