@@ -10,12 +10,48 @@ import sys
 import platform
 import re
 import tempfile
+import shutil
 from pathlib import Path
+
+def remove_path(path_pattern, description=""):
+    """Remove files/directories matching pattern in a cross-platform way."""
+    if description:
+        print(f"\n[INFO] {description}")
+    
+    try:
+        # Handle glob patterns
+        if "*" in path_pattern:
+            # Find all matching paths
+            base_dir = Path(".")
+            matching_paths = list(base_dir.glob(path_pattern))
+            
+            for path in matching_paths:
+                if path.exists():
+                    if path.is_dir():
+                        shutil.rmtree(path)
+                        print(f"Removed directory: {path}")
+                    else:
+                        path.unlink()
+                        print(f"Removed file: {path}")
+        else:
+            # Handle specific path
+            path = Path(path_pattern)
+            if path.exists():
+                if path.is_dir():
+                    shutil.rmtree(path)
+                    print(f"Removed directory: {path}")
+                else:
+                    path.unlink()
+                    print(f"Removed file: {path}")
+        return True
+    except Exception as e:
+        print(f"[ERROR] Error removing {path_pattern}: {e}")
+        return False
 
 def run_command(cmd, description="", check=True):
     """Run a command and handle output."""
     if description:
-        print(f"\n🔄 {description}")
+        print(f"\n[INFO] {description}")
         print(f"Running: {' '.join(cmd)}")
     
     try:
@@ -24,7 +60,7 @@ def run_command(cmd, description="", check=True):
             print(result.stdout)
         return result.returncode == 0
     except subprocess.CalledProcessError as e:
-        print(f"❌ Error: {e}")
+        print(f"[ERROR] Error: {e}")
         if e.stdout:
             print("Stdout:", e.stdout)
         if e.stderr:
@@ -55,24 +91,24 @@ def update_version_in_file(file_path, version, pattern, replacement):
         if new_content != content:
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(new_content)
-            print(f"✅ Updated version in {file_path}")
+            print(f"[SUCCESS] Updated version in {file_path}")
             return True
         else:
-            print(f"⚠️  No version found to update in {file_path}")
+            print(f"[WARNING]  No version found to update in {file_path}")
             return False
     except Exception as e:
-        print(f"❌ Error updating {file_path}: {e}")
+        print(f"[ERROR] Error updating {file_path}: {e}")
         return False
 
 def update_version(version):
     """Update version in all relevant files."""
-    print(f"📝 Updating version to {version}...")
+    print(f"Updating version to {version}...")
     
     # Validate version format
     try:
         version = validate_version(version)
     except ValueError as e:
-        print(f"❌ {e}")
+        print(f"[ERROR] {e}")
         return False
     
     success = True
@@ -112,29 +148,31 @@ def update_version(version):
     )
     
     if success:
-        print(f"✅ Version updated to {version} in all files")
+        print(f"[SUCCESS] Version updated to {version} in all files")
     else:
-        print(f"❌ Some files failed to update version")
+        print(f"[ERROR] Some files failed to update version")
     
     return success
 
 def build_packages():
     """Build Python packages (wheel and source distribution)."""
-    print("📦 Building Python packages...")
+    print("[BUILD] Building Python packages...")
     
     # Clean previous builds
-    run_command(["rm", "-rf", "build/", "dist/", "*.egg-info/"], "Cleaning build artifacts")
+    remove_path("build/", "Cleaning build directory")
+    remove_path("dist/", "Cleaning dist directory")
+    remove_path("*.egg-info/", "Cleaning egg-info directories")
     
     # Try modern build first
     success = run_command([sys.executable, "-m", "build"], "Building packages with modern build")
     
     # If modern build fails, try traditional build
     if not success:
-        print("⚠️  Modern build failed, trying traditional build...")
+        print("[WARNING]  Modern build failed, trying traditional build...")
         success = run_command([sys.executable, "setup.py", "sdist", "bdist_wheel"], "Building packages with traditional build")
     
     if success:
-        print("✅ Python packages built successfully!")
+        print("[SUCCESS] Python packages built successfully!")
         # Show generated files
         if Path("dist").exists():
             print("\nGenerated files:")
@@ -152,18 +190,18 @@ def build_executable(platform_name, version="0.0.0"):
         exe_name = f"web-novel-downloader-{version}.exe"
     elif platform_name == "macos":
         if platform.system() != "Darwin":
-            print("⚠️  macOS build requires macOS system. Skipping...")
+            print("[WARNING]  macOS build requires macOS system. Skipping...")
             return True
         spec_file = "build_macos.spec"
         exe_name = f"web-novel-downloader-{version}"
     else:
-        print(f"❌ Unsupported platform: {platform_name}")
+        print(f"[ERROR] Unsupported platform: {platform_name}")
         return False
     
-    print(f"🔨 Building {platform_name} executable...")
+    print(f"[BUILD] Building {platform_name} executable...")
     
     # Clean only PyInstaller build artifacts, preserve specs and scripts
-    run_command(["rm", "-rf", "build/book_downloader*"], "Cleaning PyInstaller build artifacts")
+    remove_path("build/book_downloader*", "Cleaning PyInstaller build artifacts")
     
     # Set environment variable for version
     import os
@@ -174,10 +212,10 @@ def build_executable(platform_name, version="0.0.0"):
     
     if success and Path(f"dist/{exe_name}").exists():
         size_mb = Path(f"dist/{exe_name}").stat().st_size / (1024*1024)
-        print(f"✅ {platform_name.title()} executable created: dist/{exe_name} ({size_mb:.1f} MB)")
+        print(f"[SUCCESS] {platform_name.title()} executable created: dist/{exe_name} ({size_mb:.1f} MB)")
         return True
     else:
-        print(f"❌ Failed to create {platform_name} executable")
+        print(f"[ERROR] Failed to create {platform_name} executable")
         return False
 
 def test_executable():
@@ -188,20 +226,20 @@ def test_executable():
     elif current_platform == "Darwin":
         exe_path = "dist/web-novel-downloader"
     else:
-        print(f"⚠️  Unsupported platform for testing: {current_platform}")
+        print(f"[WARNING]  Unsupported platform for testing: {current_platform}")
         return True
     
     if not Path(exe_path).exists():
-        print(f"❌ Executable not found: {exe_path}")
+        print(f"[ERROR] Executable not found: {exe_path}")
         return False
     
-    print("🧪 Testing executable...")
+    print("[TEST] Testing executable...")
     success = run_command([exe_path, "--help"], "Testing executable help command")
     
     if success:
-        print("✅ Executable test passed!")
+        print("[SUCCESS] Executable test passed!")
     else:
-        print("❌ Executable test failed!")
+        print("[ERROR] Executable test failed!")
     
     return success
 
@@ -221,14 +259,14 @@ def main():
     current_version = "0.0.0"
     if args.version:
         if not update_version(args.version):
-            print("❌ Version update failed!")
+            print("[ERROR] Version update failed!")
             return 1
         
         # Extract version number for executable naming
         current_version = validate_version(args.version)
         
         if args.version_only:
-            print("✅ Version updated successfully!")
+            print("[SUCCESS] Version updated successfully!")
             return 0
     
     if not any([args.packages, args.exe, args.all]):
@@ -252,9 +290,9 @@ def main():
         success &= test_executable()
     
     if success:
-        print("\n🎉 Build completed successfully!")
+        print("\n[SUCCESS] Build completed successfully!")
     else:
-        print("\n❌ Build failed!")
+        print("\n[ERROR] Build failed!")
         return 1
     
     return 0
