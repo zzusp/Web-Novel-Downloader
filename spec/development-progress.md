@@ -19,3 +19,6 @@
 - [x] [2025-10-09] Organize downloaded chapters by metadata hash to separate different novels
 - [x] [2025-10-09] Update replace and merge commands to work with new chapter organization
 - [x] [2025-10-09] Add required metadata-file parameter to download, replace, and merge commands
+- [x] [2025-10-11] Add --headless parameter to parse and download commands for browser visibility control
+- [x] [2025-10-11] Add --hash parameter to parse command for custom metadata hash values
+- [ ] [2025-10-11] Design configuration system for user preferences and site-specific settings

@@ -4,12 +4,22 @@
 
 ## 📋 工作流程概述
 
+### 方式一：配置文件工作流程（推荐）
+
+使用JSON配置文件可以一键完成整个下载流程：
+
+1. **创建配置文件**：编写包含所有参数的JSON配置文件
+2. **验证配置**：使用 `config validate` 命令验证配置文件
+3. **执行任务**：使用 `task` 命令自动执行完整工作流程
+
+### 方式二：传统命令工作流程
+
 1. **解析章节**：使用 `parse` 命令解析网站章节列表，生成包含章节名称和URL的JSON文件
 2. **下载内容**：使用 `download` 命令并发下载章节内容（基于已保存的元数据）
 3. **内容处理**：使用 `replace` 命令对下载的章节内容进行文本替换
 4. **合并文件**：使用 `merge` 命令将处理后的章节合并为TXT或EPUB文件
 
-> **💡 提示**：`download` 命令完全基于 `parse` 命令生成的元数据，无需重复提供URL和XPath参数。这种设计提高了使用效率并减少了错误。
+> **💡 提示**：推荐使用配置文件方式，可以避免重复输入参数，提高使用效率。`download` 命令完全基于 `parse` 命令生成的元数据，无需重复提供URL和XPath参数。
 
 ## 📋 使用前准备
 
@@ -75,10 +85,137 @@ web-novel-downloader <command> [options]
 
 ### 可用命令
 
+#### 配置文件命令（推荐）
+- `task`：执行完整工作流程（基于配置文件）
+- `config validate`：验证配置文件格式和内容
+
+#### 传统命令
 - `parse`：解析章节列表，提取章节链接和标题
 - `download`：下载章节内容（基于已保存的元数据）
 - `replace`：对下载的章节进行字符串替换
 - `merge`：将章节合并为TXT或EPUB文件
+
+## 配置文件工作流程（推荐）
+
+### 创建配置文件
+
+在项目根目录创建 `configs/` 文件夹，然后创建JSON配置文件：
+
+```json
+{
+  "version": "1.0",
+  "task_name": "我的小说下载任务",
+  "description": "从example.com下载小说的配置",
+  
+  "browser": {
+    "chrome_path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "headless": true,
+    "proxy": null
+  },
+  
+  "novel": {
+    "menu_url": "https://www.example.com/book/123456",
+    "title": "我的最爱小说",
+    "author": "作者名称",
+    "output_filename": "my_favorite_novel"
+  },
+  
+  "parsing": {
+    "hash": "my_novel_123",
+    "chapter_xpath": "(//div[@class='bd'])[2]//ul[@class='list']//li/a",
+    "content_xpath": "//div[@class='page-content']",
+    "chapter_pagination_xpath": null,
+    "chapter_list_pagination_xpath": "//a[contains(text(),'下一页')]",
+    "content_regex": null
+  },
+  
+  "downloading": {
+    "concurrency": 3,
+    "content_regex": null
+  },
+  
+  "processing": {
+    "string_replacements": [
+      ["<p>", ""],
+      ["</p>", ""],
+      ["<div>", ""],
+      ["</div>", ""]
+    ],
+    "regex_replacements": [
+      ["<img[^>]*>", "[图片]"],
+      ["\\s+", " "]
+    ],
+    "case_sensitive": false,
+    "backup_enabled": false,
+    "file_pattern": "*.html"
+  },
+  
+  "merging": {
+    "format": "epub",
+    "reverse_order": false,
+    "output_directory": "~/Downloads/Novels"
+  }
+}
+```
+
+### 配置文件说明
+
+#### 必需字段
+- `version`: 配置文件版本（当前为"1.0"）
+- `task_name`: 任务名称
+- `description`: 任务描述
+- `browser.chrome_path`: Chrome浏览器可执行文件路径
+- `novel.menu_url`: 小说目录页URL
+- `parsing.hash`: 唯一标识符，用于生成元数据文件名
+- `parsing.chapter_xpath`: 章节链接的XPath表达式
+- `parsing.content_xpath`: 章节内容的XPath表达式
+
+#### 可选字段
+- `browser.headless`: 是否使用无头模式（默认true）
+- `browser.proxy`: 代理服务器地址（可选）
+- `novel.title`: 小说标题
+- `novel.author`: 作者名称
+- `novel.output_filename`: 输出文件名
+- `parsing.chapter_pagination_xpath`: 章节内分页XPath
+- `parsing.chapter_list_pagination_xpath`: 章节列表分页XPath
+- `parsing.content_regex`: 内容过滤正则表达式
+- `downloading.concurrency`: 并发下载数量（默认3）
+- `downloading.content_regex`: 下载时内容过滤正则
+- `processing.string_replacements`: 字符串替换规则
+- `processing.regex_replacements`: 正则替换规则
+- `processing.case_sensitive`: 是否区分大小写（默认false）
+- `processing.backup_enabled`: 是否创建备份（默认false）
+- `processing.file_pattern`: 文件匹配模式（默认"*.html"）
+- `merging.format`: 输出格式（"txt"或"epub"，默认"txt"）
+- `merging.reverse_order`: 是否逆序合并（默认false）
+- `merging.output_directory`: 输出目录（默认"~/Downloads/Novels"）
+
+### 验证配置文件
+
+```bash
+python scripts/book_downloader.py config validate configs/my_novel.json
+```
+
+### 执行任务
+
+```bash
+python scripts/book_downloader.py task --config configs/my_novel.json
+```
+
+### 智能跳过功能
+
+系统会自动检测已存在的元数据文件：
+- 如果元数据文件存在且URL匹配，自动跳过解析步骤
+- 如果元数据文件存在但URL不匹配，会重新解析
+- 支持断点续传，避免重复下载已完成的章节
+
+### 反检测机制
+
+内置多种反爬虫检测机制：
+- 自动检测Cloudflare保护页面
+- 智能处理404错误页面
+- 反自动化检测（禁用自动化标识）
+- 自定义User-Agent和浏览器参数
 
 ## 第一步：解析章节列表 (parse)
 
@@ -100,15 +237,64 @@ python scripts/book_downloader.py parse --menu-url "<网站URL>" --chapter-xpath
 - `--chapter-list-pagination-xpath`：章节列表分页的XPath表达式
 - `--content-regex`：内容过滤的正则表达式
 - `--proxy`：代理服务器地址
+- `--headless`：在后台运行浏览器（默认：True）
+- `--hash`：自定义元数据文件哈希值（用于命名 `chapters_<hash>.json` 文件）
+- `--no-headless`：显示浏览器窗口（覆盖--headless设置）
+
+### --hash 参数详解
+
+`--hash` 参数允许您为元数据文件指定自定义的哈希值，而不是使用基于URL自动生成的哈希值。
+
+**使用场景：**
+- 为不同版本的小说使用不同的哈希值
+- 便于识别和管理多个小说的元数据文件
+- 避免哈希冲突（虽然概率很低）
+
+**哈希值要求：**
+- 长度：1-32个字符
+- 允许字符：字母（a-z, A-Z）、数字（0-9）、下划线（_）、连字符（-）
+- 不允许：空格、特殊符号、中文等
+
+**示例：**
+```bash
+# 使用自定义哈希值
+python scripts/book_downloader.py parse --menu-url "https://example.com/novel" \
+  --chapter-xpath "//a[@class='chapter-link']" \
+  --content-xpath "//div[@class='content']" \
+  --hash "my-novel-v1"
+
+# 生成的文件：chapters_my-novel-v1.json
+# 章节目录：chapters_my-novel-v1/
+```
+
+**注意事项：**
+- 如果不指定 `--hash`，系统会自动使用URL的MD5哈希值
+- 自定义哈希值会覆盖自动生成的哈希值
+- 确保哈希值唯一，避免与其他小说的元数据文件冲突
 
 ### 示例
 
 ```bash
+# 基本用法（默认后台运行）
 python scripts/book_downloader.py parse \
   --menu-url "https://www.example.com/book/123456" \
   --chapter-xpath "(//div[@class='bd'])[2]//ul[@class='list']//li/a" \
   --content-xpath "//div[@class='page-content']" \
   --chapter-list-pagination-xpath "//a[contains(text(),'下一页')]"
+
+# 显示浏览器窗口（用于调试）
+python scripts/book_downloader.py parse \
+  --menu-url "https://www.example.com/book/123456" \
+  --chapter-xpath "(//div[@class='bd'])[2]//ul[@class='list']//li/a" \
+  --content-xpath "//div[@class='page-content']" \
+  --no-headless
+
+# 使用自定义哈希值
+python scripts/book_downloader.py parse \
+  --menu-url "https://www.example.com/book/123456" \
+  --chapter-xpath "(//div[@class='bd'])[2]//ul[@class='list']//li/a" \
+  --content-xpath "//div[@class='page-content']" \
+  --hash "example-novel-v1"
 ```
 
 ### 输出
@@ -118,11 +304,19 @@ python scripts/book_downloader.py parse \
 2. 将信息保存到 `chapters/metadata/chapters_<hash>.json` 文件
 3. 显示解析的章节数量和前几个章节信息
 
-**示例输出：**
+**示例输出（使用默认哈希）：**
 ```
 📋 Parsing chapters from: https://www.example.com/book/123456
 Found 95 chapters on page 1
 📋 Saved chapter metadata to: chapters/metadata/chapters_879584cc.json
+✅ Chapter parsing completed: 95 chapters found
+```
+
+**示例输出（使用自定义哈希）：**
+```
+📋 Parsing chapters from: https://www.example.com/book/123456
+Found 95 chapters on page 1
+📋 Saved chapter metadata to: chapters/metadata/chapters_example-novel-v1.json
 ✅ Chapter parsing completed: 95 chapters found
 ```
 
@@ -143,15 +337,20 @@ python scripts/book_downloader.py download --metadata-file chapters/metadata/cha
 - `--concurrency N`：并发下载数量（默认3）
 - `--proxy <proxy>`：代理服务器（如：127.0.0.1:10808）
 - `--content-regex`：内容过滤的正则表达式（覆盖元数据中的设置）
+- `--headless`：在后台运行浏览器（默认：True）
+- `--no-headless`：显示浏览器窗口（覆盖--headless设置）
 
 ### 示例
 
 ```bash
-# 使用元数据文件下载
+# 使用元数据文件下载（默认后台运行）
 python scripts/book_downloader.py download --metadata-file chapters/metadata/chapters_879584cc.json --concurrency 5
 
 # 使用相对路径
 python scripts/book_downloader.py download --metadata-file ./chapters/metadata/chapters_879584cc.json --concurrency 5
+
+# 显示浏览器窗口（用于调试或手动处理Cloudflare验证）
+python scripts/book_downloader.py download --metadata-file chapters/metadata/chapters_879584cc.json --concurrency 5 --no-headless
 ```
 
 ### 功能特性
@@ -409,6 +608,26 @@ Creating EPUB chapter: Chapter（06-10）.html
 5. 按回车查看匹配的元素
 
 ## 🛠️ 高级功能
+
+### 浏览器可见性控制
+
+#### 后台运行（默认）
+默认情况下，浏览器在后台运行，不显示窗口：
+```bash
+# 后台运行（默认行为）
+python scripts/book_downloader.py parse --menu-url "https://example.com/novel" --chapter-xpath "//a[@class='chapter']" --content-xpath "//div[@class='content']"
+```
+
+#### 显示浏览器窗口
+当需要调试或手动处理验证时，可以显示浏览器窗口：
+```bash
+# 显示浏览器窗口
+python scripts/book_downloader.py parse --menu-url "https://example.com/novel" --chapter-xpath "//a[@class='chapter']" --content-xpath "//div[@class='content']" --no-headless
+```
+
+#### 使用场景
+- **后台运行**：正常下载时使用，节省系统资源
+- **显示窗口**：调试XPath表达式、处理Cloudflare验证、查看页面加载情况
 
 ### 分页支持
 

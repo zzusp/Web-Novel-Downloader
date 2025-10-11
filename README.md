@@ -22,6 +22,11 @@
 - **章节组织**：按元数据哈希组织章节文件到 `chapters_<hash>/` 目录
 - **断点续传**：跳过已下载的章节
 - **Cloudflare保护处理**：自动处理反爬虫保护
+- **配置文件系统**：支持JSON配置文件，一键执行完整工作流程
+- **浏览器控制**：支持无头模式和有头模式切换
+- **智能跳过**：自动跳过已存在的元数据文件，支持断点续传
+- **反检测机制**：内置反爬虫检测和Cloudflare保护处理
+- **错误处理**：完善的错误检测和用户友好的错误信息
 
 ---
 
@@ -47,20 +52,26 @@
 
 #### 1. 解析章节列表
 ```bash
-# Windows
+# Windows（默认后台运行）
 ./web-novel-downloader.exe parse --menu-url "https://example.com/novel" --chapter-xpath "//a[@class='chapter-link']" --content-xpath "//div[@class='content']"
 
-# macOS
+# macOS（默认后台运行）
 ./web-novel-downloader.app/Contents/MacOS/web-novel-downloader parse --menu-url "https://example.com/novel" --chapter-xpath "//a[@class='chapter-link']" --content-xpath "//div[@class='content']"
+
+# 显示浏览器窗口（用于调试）
+./web-novel-downloader.exe parse --menu-url "https://example.com/novel" --chapter-xpath "//a[@class='chapter-link']" --content-xpath "//div[@class='content']" --no-headless
 ```
 
 #### 2. 下载章节
 ```bash
-# Windows
+# Windows（默认后台运行）
 ./web-novel-downloader.exe download --metadata-file chapters/metadata/chapters_<hash>.json --concurrency 5
 
-# macOS
+# macOS（默认后台运行）
 ./web-novel-downloader.app/Contents/MacOS/web-novel-downloader download --metadata-file chapters/metadata/chapters_<hash>.json --concurrency 5
+
+# 显示浏览器窗口（用于调试或手动处理验证）
+./web-novel-downloader.exe download --metadata-file chapters/metadata/chapters_<hash>.json --concurrency 5 --no-headless
 ```
 
 #### 3. 章节内容字符串替换（可选）
@@ -90,6 +101,104 @@
 ./web-novel-downloader.app/Contents/MacOS/web-novel-downloader merge --metadata-file chapters/metadata/chapters_<hash>.json --format epub --output "my_novel.epub" --title "小说标题" --author "作者名"
 ```
 
+### 配置文件工作流程（推荐）
+
+使用配置文件可以一次性完成所有步骤，无需手动执行每个命令。
+
+#### 1. 创建配置文件
+
+在项目根目录创建 `configs/` 文件夹，然后创建JSON配置文件：
+
+```json
+{
+  "version": "1.0",
+  "task_name": "我的小说下载任务",
+  "description": "从example.com下载小说的配置",
+  
+  "browser": {
+    "chrome_path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "headless": true,
+    "proxy": null
+  },
+  
+  "novel": {
+    "menu_url": "https://www.example.com/book/123456",
+    "title": "我的最爱小说",
+    "author": "作者名称",
+    "output_filename": "my_favorite_novel"
+  },
+  
+  "parsing": {
+    "hash": "my_novel_123",
+    "chapter_xpath": "(//div[@class='bd'])[2]//ul[@class='list']//li/a",
+    "content_xpath": "//div[@class='page-content']",
+    "chapter_pagination_xpath": null,
+    "chapter_list_pagination_xpath": "//a[contains(text(),'下一页')]",
+    "content_regex": null
+  },
+  
+  "downloading": {
+    "concurrency": 3,
+    "content_regex": null
+  },
+  
+  "processing": {
+    "string_replacements": [
+      ["<p>", ""],
+      ["</p>", ""],
+      ["<div>", ""],
+      ["</div>", ""]
+    ],
+    "regex_replacements": [
+      ["<img[^>]*>", "[图片]"],
+      ["\\s+", " "]
+    ],
+    "case_sensitive": false,
+    "backup_enabled": false,
+    "file_pattern": "*.html"
+  },
+  
+  "merging": {
+    "format": "epub",
+    "reverse_order": false,
+    "output_directory": "~/Downloads/Novels"
+  }
+}
+```
+
+#### 2. 验证配置文件
+
+```bash
+./web-novel-downloader.exe config validate configs/my_novel.json
+```
+
+#### 3. 执行完整工作流程
+
+```bash
+./web-novel-downloader.exe task --config configs/my_novel.json
+```
+
+这个命令会自动执行以下步骤：
+1. 解析章节列表（如果元数据文件已存在则跳过）
+2. 下载所有章节内容
+3. 处理内容（字符串替换等）
+4. 合并为最终文件
+
+#### 智能跳过功能
+
+系统会自动检测已存在的元数据文件：
+- 如果元数据文件存在且URL匹配，自动跳过解析步骤
+- 如果元数据文件存在但URL不匹配，会重新解析
+- 支持断点续传，避免重复下载已完成的章节
+
+#### 反检测机制
+
+内置多种反爬虫检测机制：
+- 自动检测Cloudflare保护页面
+- 智能处理404错误页面
+- 反自动化检测（禁用自动化标识）
+- 自定义User-Agent和浏览器参数
+
 ### 详细使用说明
 
 #### 解析章节 (parse)
@@ -107,6 +216,8 @@
 - `--content-regex`：内容过滤的正则表达式
 - `--string-replacements`：字符串替换规则（JSON格式）
 - `--proxy`：代理服务器地址
+- `--headless`：无头模式运行浏览器（默认：True）
+- `--no-headless`：显示浏览器窗口
 
 **示例**：
 ```bash
@@ -129,6 +240,8 @@
 - `--concurrency`：并发下载数量（默认3）
 - `--proxy`：代理服务器地址
 - `--content-regex`：内容过滤的正则表达式（覆盖元数据中的设置）
+- `--headless`：无头模式运行浏览器（默认：True）
+- `--no-headless`：显示浏览器窗口
 
 **示例**：
 ```bash

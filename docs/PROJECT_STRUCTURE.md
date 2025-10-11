@@ -9,15 +9,16 @@ Web-Novel-Downloader/
 │       ├── __init__.py
 │       ├── cli.py                 # 命令行接口
 │       ├── core.py                # 核心逻辑
-│       ├── scraper.py             # 爬虫功能
 │       ├── epub_generator.py      # EPUB生成
 │       ├── metadata.py            # 元数据管理
 │       ├── utils.py               # 工具函数
-│       └── config.py              # 配置管理
+│       ├── config.py              # 配置管理
+│       ├── config_manager.py      # 配置管理器
+│       ├── config_validator.py    # 配置验证器
+│       └── task_executor.py       # 任务执行器
 ├── scripts/                       # 脚本目录
 │   ├── __init__.py
 │   ├── book_downloader.py         # 主入口脚本
-│   ├── scraper.py                 # 爬虫脚本
 │   └── build/                     # 构建脚本
 │       └── build.py               # Python构建脚本
 ├── tests/                         # 测试目录
@@ -25,6 +26,8 @@ Web-Novel-Downloader/
 │   ├── conftest.py                # pytest配置
 │   ├── test_config.py
 │   └── test_utils.py
+├── configs/                       # 配置文件目录
+│   └── example.json               # 示例配置文件
 ├── spec/                          # 规范文档
 │   ├── development-progress.md    # 开发进度
 │   └── develop-logs/              # 开发日志
@@ -116,6 +119,63 @@ rm -rf build/ dist/ *.egg-info/
 - **setuptools** - Python包构建
 - **build** - 现代构建工具
 - **PyInstaller** - 可执行文件生成
+
+## 📦 模块说明
+
+### 核心模块
+
+#### `core.py` - 核心逻辑
+- `NovelDownloader` 类：主要的小说下载器
+- 支持XPath解析、并发下载、内容处理
+- 内置反爬虫检测和Cloudflare保护处理
+- 支持Chrome路径配置和浏览器控制
+
+#### `cli.py` - 命令行接口
+- 解析命令行参数
+- 提供 `parse`、`download`、`replace`、`merge` 命令
+- 新增 `task` 和 `config validate` 命令
+- 统一的错误处理和用户界面
+
+#### `metadata.py` - 元数据管理
+- 章节信息的保存和加载
+- 元数据哈希生成和管理
+- 支持断点续传
+
+#### `epub_generator.py` - EPUB生成
+- 生成标准EPUB格式电子书
+- 支持目录导航和元数据
+
+#### `utils.py` - 工具函数
+- 字符串替换功能
+- 章节排序和合并
+- 文件处理工具
+
+### 配置系统模块
+
+#### `config_manager.py` - 配置管理器
+- 加载和验证JSON配置文件
+- 配置缓存机制
+- 自动生成文件路径
+- Chrome路径验证
+
+#### `config_validator.py` - 配置验证器
+- 验证JSON配置文件的格式和内容
+- 检查必需字段和数据类型
+- 业务规则验证（URL格式、XPath等）
+- 详细的错误报告
+
+#### `task_executor.py` - 任务执行器
+- 执行完整的工作流程
+- 四步工作流程：parse → download → replace → merge
+- 智能跳过已存在的元数据文件
+- 完善的错误处理和进度显示
+
+### 配置文件
+
+#### `configs/` 目录
+- 存储JSON配置文件
+- 每个配置文件对应一个下载任务
+- 支持多个网站和小说配置
 
 ## 📋 配置文件说明
 
