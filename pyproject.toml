@@ -46,9 +46,9 @@ web-novel-downloader = "scripts.book_downloader:main"
 web-novel-scraper = "scripts.scraper:main"
 
 [project.urls]
-Homepage = "https://github.com/your-username/book-downloader"
-Repository = "https://github.com/your-username/book-downloader"
-Issues = "https://github.com/your-username/book-downloader/issues"
+Homepage = "https://github.com/zzusp/Web-Novel-Downloader"
+Repository = "https://github.com/zzusp/Web-Novel-Downloader"
+Issues = "https://github.com/zzusp/Web-Novel-Downloader/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

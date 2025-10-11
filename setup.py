@@ -60,7 +60,6 @@ setup(
     entry_points={
         "console_scripts": [
             "web-novel-downloader=scripts.book_downloader:main",
-            "web-novel-scraper=scripts.scraper:main",
         ],
     },
     include_package_data=True,
