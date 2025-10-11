@@ -6,6 +6,7 @@ Handles command line argument parsing and command execution.
 
 import argparse
 import asyncio
+import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -299,6 +300,12 @@ def create_argument_parser() -> argparse.ArgumentParser:
     parse_parser.add_argument("--chapter-list-pagination-xpath", 
                                 help="Optional XPath expression to extract next page links from chapter list")
     parse_parser.add_argument("--proxy", help="Proxy server to use (e.g., 127.0.0.1:10808)")
+    parse_parser.add_argument("--headless", action='store_true', default=True,
+                                help="Run browser in headless mode (default: True)")
+    parse_parser.add_argument("--no-headless", action='store_false', dest='headless',
+                                help="Show browser window (overrides --headless)")
+    parse_parser.add_argument("--hash", 
+                                help="Custom hash value for metadata file naming (chapters_<hash>.json)")
     
     # Download command - download chapters using stored metadata
     download_parser = subparsers.add_parser('download', help='Download novel chapters using stored metadata')
@@ -309,6 +316,10 @@ def create_argument_parser() -> argparse.ArgumentParser:
     download_parser.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY,
                                 help=f"Number of concurrent downloads (default: {DEFAULT_CONCURRENCY})")
     download_parser.add_argument("--proxy", help="Proxy server to use (e.g., 127.0.0.1:10808)")
+    download_parser.add_argument("--headless", action='store_true', default=True,
+                                help="Run browser in headless mode (default: True)")
+    download_parser.add_argument("--no-headless", action='store_false', dest='headless',
+                                help="Show browser window (overrides --headless)")
     
     # Merge command
     merge_parser = subparsers.add_parser('merge', help='Merge downloaded chapters')
@@ -338,11 +349,30 @@ def create_argument_parser() -> argparse.ArgumentParser:
     replace_parser.add_argument("--pattern", default=DEFAULT_FILE_PATTERN,
                                 help=f"File pattern to match (default: {DEFAULT_FILE_PATTERN})")
     
+    # Task command - execute complete workflow from configuration file
+    task_parser = subparsers.add_parser('task', help='Execute complete workflow from configuration file')
+    task_parser.add_argument("--config", required=True,
+                            help="Path to the JSON configuration file")
+    
+    # Config command - configuration management
+    config_parser = subparsers.add_parser('config', help='Configuration management commands')
+    config_subparsers = config_parser.add_subparsers(dest='config_command', help='Available config commands')
+    
+    # Config validate command
+    config_validate_parser = config_subparsers.add_parser('validate', help='Validate configuration file')
+    config_validate_parser.add_argument("config_file", help="Path to the JSON configuration file to validate")
+    
     return parser
 
 
 async def execute_parse_command(args):
     """Execute the parse command."""
+    # Validate custom hash if provided
+    if args.hash:
+        if not re.match(r'^[a-zA-Z0-9_-]{1,32}$', args.hash):
+            print("❌ Error: Hash must be 1-32 characters long and contain only letters, numbers, underscores, and hyphens")
+            return
+    
     downloader = NovelDownloader(
         chapter_xpath=args.chapter_xpath,
         content_xpath=args.content_xpath,
@@ -351,7 +381,9 @@ async def execute_parse_command(args):
         content_regex=args.content_regex,
         string_replacements=[],  # No string replacements during parsing
         chapter_pagination_xpath=args.chapter_pagination_xpath,
-        chapter_list_pagination_xpath=args.chapter_list_pagination_xpath
+        chapter_list_pagination_xpath=args.chapter_list_pagination_xpath,
+        headless=args.headless,
+        custom_hash=args.hash
     )
     
     try:
@@ -427,7 +459,8 @@ async def execute_download_command(args):
         content_regex=content_regex,
         string_replacements=string_replacements,
         chapter_pagination_xpath=chapter_pagination_xpath,
-        chapter_list_pagination_xpath=chapter_list_pagination_xpath
+        chapter_list_pagination_xpath=chapter_list_pagination_xpath,
+        headless=args.headless
     )
     
     try:
@@ -483,6 +516,47 @@ def execute_replace_command(args):
                            args.case_sensitive, args.backup, args.dry_run, args.pattern)
 
 
+async def execute_task_command(args):
+    """Execute the task command."""
+    from .task_executor import TaskExecutor
+    
+    executor = TaskExecutor()
+    result = await executor.execute_task(args.config)
+    
+    if result["success"]:
+        print(f"\n[SUCCESS] Task completed successfully!")
+        if "output_file" in result:
+            print(f"[OUTPUT] Output file: {result['output_file']}")
+    else:
+        print(f"\n[ERROR] Task failed: {result.get('error', 'Unknown error')}")
+        return 1
+    
+    return 0
+
+
+def execute_config_validate_command(args):
+    """Execute the config validate command."""
+    from .config_manager import ConfigManager
+    
+    config_manager = ConfigManager()
+    
+    try:
+        config_data = config_manager.load_config(args.config_file)
+        print(f"[SUCCESS] Configuration file is valid: {args.config_file}")
+        print(f"[INFO] Task name: {config_data.get('task_name', 'Unknown')}")
+        print(f"[INFO] Novel URL: {config_data.get('novel', {}).get('menu_url', 'Unknown')}")
+        return 0
+    except FileNotFoundError:
+        print(f"[ERROR] Configuration file not found: {args.config_file}")
+        return 1
+    except json.JSONDecodeError as e:
+        print(f"[ERROR] Invalid JSON in configuration file: {e}")
+        return 1
+    except ValueError as e:
+        print(f"[ERROR] Configuration validation failed: {e}")
+        return 1
+
+
 async def main():
     """Main function to handle command line arguments and execute commands."""
     parser = create_argument_parser()
@@ -496,5 +570,16 @@ async def main():
         execute_merge_command(args)
     elif args.command == 'replace':
         execute_replace_command(args)
+    elif args.command == 'task':
+        return await execute_task_command(args)
+    elif args.command == 'config':
+        if args.config_command == 'validate':
+            return execute_config_validate_command(args)
+        else:
+            parser.print_help()
+            return 1
     else:
         parser.print_help()
+        return 1
+    
+    return 0
