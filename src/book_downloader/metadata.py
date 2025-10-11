@@ -19,11 +19,15 @@ class MetadataManager:
     def __init__(self):
         self.metadata_dir = metadata_dir
     
-    def _generate_metadata_filename(self, menu_url: str) -> str:
+    def _generate_metadata_filename(self, menu_url: str, custom_hash: Optional[str] = None) -> str:
         """Generate a unique filename for storing chapter metadata."""
-        # Create a hash of the URL for consistent filename
-        url_hash = hashlib.md5(menu_url.encode('utf-8')).hexdigest()[:8]
-        return f"chapters_{url_hash}.json"
+        if custom_hash:
+            # Use custom hash if provided
+            return f"chapters_{custom_hash}.json"
+        else:
+            # Create a hash of the URL for consistent filename
+            url_hash = hashlib.md5(menu_url.encode('utf-8')).hexdigest()[:8]
+            return f"chapters_{url_hash}.json"
     
     def _extract_hash_from_filename(self, filename: str) -> str:
         """Extract hash from metadata filename."""
@@ -32,17 +36,18 @@ class MetadataManager:
             return filename[9:-5]  # Remove "chapters_" prefix and ".json" suffix
         return ""
     
-    def get_metadata_hash(self, menu_url: str) -> Optional[str]:
+    def get_metadata_hash(self, menu_url: str, custom_hash: Optional[str] = None) -> Optional[str]:
         """
         Get the hash for a given menu URL's metadata file.
         
         Args:
             menu_url: URL of the novel's menu page
+            custom_hash: Optional custom hash to check for
             
         Returns:
             Hash string if metadata file exists, None otherwise
         """
-        filename = self._generate_metadata_filename(menu_url)
+        filename = self._generate_metadata_filename(menu_url, custom_hash)
         metadata_file = self.metadata_dir / filename
         
         if metadata_file.exists():
@@ -54,7 +59,8 @@ class MetadataManager:
                             chapter_pagination_xpath: Optional[str] = None,
                             chapter_list_pagination_xpath: Optional[str] = None,
                             content_regex: Optional[str] = None,
-                            string_replacements: Optional[List[List[str]]] = None) -> str:
+                            string_replacements: Optional[List[List[str]]] = None,
+                            custom_hash: Optional[str] = None) -> str:
         """
         Save chapter information to a JSON file.
         
@@ -67,6 +73,7 @@ class MetadataManager:
             chapter_list_pagination_xpath: Optional XPath expression for chapter list pagination links
             content_regex: Optional regex pattern for content filtering
             string_replacements: Optional list of string replacements
+            custom_hash: Optional custom hash value for metadata file naming
             
         Returns:
             Path to the saved metadata file
@@ -87,7 +94,7 @@ class MetadataManager:
             ]
         }
         
-        filename = self._generate_metadata_filename(menu_url)
+        filename = self._generate_metadata_filename(menu_url, custom_hash)
         metadata_file = self.metadata_dir / filename
         
         with open(metadata_file, 'w', encoding='utf-8') as f:
@@ -96,17 +103,18 @@ class MetadataManager:
         print(f"Chapter metadata saved to: {metadata_file}")
         return str(metadata_file)
         
-    def load_chapter_metadata(self, menu_url: str) -> Optional[Dict[str, Any]]:
+    def load_chapter_metadata(self, menu_url: str, custom_hash: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Load chapter information from stored JSON file.
         
         Args:
             menu_url: URL of the novel's menu page
+            custom_hash: Optional custom hash to look for
             
         Returns:
             Dictionary with chapter metadata if found, None otherwise
         """
-        filename = self._generate_metadata_filename(menu_url)
+        filename = self._generate_metadata_filename(menu_url, custom_hash)
         metadata_file = self.metadata_dir / filename
         
         if not metadata_file.exists():
@@ -129,17 +137,18 @@ class MetadataManager:
             print(f"Warning: Invalid metadata file format: {e}")
             return None
     
-    def get_stored_chapters(self, menu_url: str) -> Optional[List[Tuple[str, str, int]]]:
+    def get_stored_chapters(self, menu_url: str, custom_hash: Optional[str] = None) -> Optional[List[Tuple[str, str, int]]]:
         """
         Get stored chapter information if available.
         
         Args:
             menu_url: URL of the novel's menu page
+            custom_hash: Optional custom hash to look for
             
         Returns:
             List of (chapter_url, chapter_title, chapter_index) tuples if found, None otherwise
         """
-        metadata = self.load_chapter_metadata(menu_url)
+        metadata = self.load_chapter_metadata(menu_url, custom_hash)
         if metadata is None:
             return None
             

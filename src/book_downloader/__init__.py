@@ -44,7 +44,6 @@ from .metadata import (
     find_best_metadata,
 )
 from .epub_generator import create_epub
-from .scraper import main as scraper_main
 
 __all__ = [
     # Main classes
@@ -79,7 +78,4 @@ __all__ = [
     
     # EPUB generation
     "create_epub",
-    
-    # Scraper
-    "scraper_main",
 ]

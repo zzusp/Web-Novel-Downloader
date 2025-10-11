@@ -6,6 +6,8 @@ Contains the main NovelDownloader class and related functionality.
 
 import asyncio
 import re
+import tempfile
+import os
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict, Any, cast
 from urllib.parse import urljoin
@@ -13,6 +15,7 @@ from lxml import html
 from pydoll.browser import Chrome
 from pydoll.constants import By
 from pydoll.elements.web_element import WebElement
+from pydoll.browser.options import ChromiumOptions
 
 from .config import chapters_dir, CLOUDFLARE_MAX_WAIT_TIME, CLOUDFLARE_CHECK_INTERVAL
 from .utils import process_content_with_regex, apply_string_replacements, sanitize_filename
@@ -30,7 +33,10 @@ class NovelDownloader:
                  content_regex: Optional[str] = None,
                  string_replacements: Optional[List[List[str]]] = None,
                  chapter_pagination_xpath: Optional[str] = None,
-                 chapter_list_pagination_xpath: Optional[str] = None):
+                 chapter_list_pagination_xpath: Optional[str] = None,
+                 headless: bool = True,
+                 custom_hash: Optional[str] = None,
+                 chrome_path: Optional[str] = None):
         """
         Initialize the novel downloader.
         
@@ -43,6 +49,9 @@ class NovelDownloader:
             string_replacements: Optional list of [old, new] string pairs for replacement
             chapter_pagination_xpath: Optional XPath expression to extract pagination links within chapters
             chapter_list_pagination_xpath: Optional XPath expression to extract next page links from chapter list
+            headless: Whether to run browser in headless mode (default: True)
+            custom_hash: Optional custom hash for metadata file naming
+            chrome_path: Optional path to Chrome executable
         """
         self.chapter_xpath = chapter_xpath
         self.content_xpath = content_xpath
@@ -52,6 +61,9 @@ class NovelDownloader:
         self.string_replacements = string_replacements or []
         self.chapter_pagination_xpath = chapter_pagination_xpath
         self.chapter_list_pagination_xpath = chapter_list_pagination_xpath
+        self.headless = headless
+        self.custom_hash = custom_hash
+        self.chrome_path = chrome_path
         self.browser = None
         self.semaphore = asyncio.Semaphore(concurrency)
         self.metadata_manager = MetadataManager()
@@ -80,20 +92,54 @@ class NovelDownloader:
         
     async def start_browser(self):
         """Start the browser instance."""
-        self.browser = Chrome()
+        options = ChromiumOptions()
+        
+        # Set Chrome executable path if provided
+        if self.chrome_path:
+            options.binary_location = self.chrome_path
+        
+        # Set headless mode based on parameter
+        if self.headless:
+            options.add_argument('--headless=new')
+        
+        # Anti-detection measures
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-gpu')
+        options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+        # options.add_argument('--start-maximized')
+        # options.add_argument('--disable-notifications')
+        # Set user data directory to avoid temp file conflicts
+        user_data_dir = os.path.join(tempfile.gettempdir(), f"pydoll_browser_{os.getpid()}")
+        options.add_argument(f'--user-data-dir={user_data_dir}')
+        
+        self.browser = Chrome(options=options)
         await self.browser.start()
         
     async def stop_browser(self):
         """Stop the browser instance."""
         if self.browser:
             try:
-                await self.browser.stop()
+                # Set a timeout for browser stop to prevent hanging
+                await asyncio.wait_for(self.browser.stop(), timeout=10.0)
                 # Wait a bit for cleanup
-                await asyncio.sleep(3)
+                await asyncio.sleep(2)
+            except asyncio.TimeoutError:
+                print("Warning: Browser stop timed out, forcing cleanup...")
+                # Force kill browser process if it doesn't stop gracefully
+                try:
+                    if hasattr(self.browser, '_process') and self.browser._process:
+                        self.browser._process.terminate()
+                        await asyncio.sleep(1)
+                        if self.browser._process.poll() is None:
+                            self.browser._process.kill()
+                except:
+                    pass
             except (PermissionError, OSError, FileNotFoundError, Exception) as e:
                 # Ignore cleanup errors on Windows - these are typically temporary file cleanup issues
                 # that don't affect functionality. Only show warning for non-permission errors.
-                if not isinstance(e, PermissionError):
+                if not isinstance(e, (PermissionError, OSError)):
                     print(f"Warning: Browser cleanup warning (can be ignored): {e}")
                 pass
             finally:
@@ -113,14 +159,91 @@ class NovelDownloader:
                     try:
                         import os
                         import tempfile
-                        # Clean up any remaining temp files
+                        import shutil
+                        # Clean up any remaining temp files with retry mechanism
                         temp_dir = os.environ.get('PYDOLL_TEMP_DIR', tempfile.gettempdir())
                         if os.path.exists(temp_dir):
-                            # Just ignore any cleanup errors
-                            pass
+                            # Try to clean up temp files with retry
+                            for _ in range(3):
+                                try:
+                                    # Only clean up our specific browser temp files
+                                    browser_temp_pattern = f"pydoll_browser_{os.getpid()}"
+                                    for item in os.listdir(temp_dir):
+                                        if browser_temp_pattern in item:
+                                            item_path = os.path.join(temp_dir, item)
+                                            if os.path.isdir(item_path):
+                                                shutil.rmtree(item_path, ignore_errors=True)
+                                            elif os.path.isfile(item_path):
+                                                os.remove(item_path)
+                                    break
+                                except (PermissionError, OSError):
+                                    await asyncio.sleep(1)  # Wait and retry
+                                    continue
                     except:
                         pass
                 
+    def _is_real_404_page(self, html_content: str) -> bool:
+        """
+        Check if the page is a real 404 error page with more precise detection.
+        
+        Args:
+            html_content: HTML content of the page
+            
+        Returns:
+            True if this is a real 404 error page, False otherwise
+        """
+        if not html_content:
+            return False
+            
+        content_lower = html_content.lower()
+        
+        # Check for common 404 error indicators
+        error_indicators = [
+            # Common 404 error messages
+            "page not found",
+            "not found",
+            "404 error",
+            "404 not found",
+            "the page you requested was not found",
+            "the requested page could not be found",
+            "this page does not exist",
+            "page does not exist",
+            "content not found",
+            "article not found",
+            "post not found",
+            
+            # Chinese 404 messages
+            "页面未找到",
+            "页面不存在",
+            "文章不存在",
+            "内容不存在",
+            "找不到页面",
+            "页面丢失",
+            "内容已删除",
+            "文章已删除",
+        ]
+        
+        # Check if any error indicator is present
+        for indicator in error_indicators:
+            if indicator in content_lower:
+                return True
+        
+        # Check for 404 in title tag specifically
+        import re
+        title_match = re.search(r'<title[^>]*>(.*?)</title>', content_lower, re.DOTALL)
+        if title_match:
+            title_content = title_match.group(1).strip()
+            if any(indicator in title_content for indicator in ["404", "not found", "页面未找到", "页面不存在"]):
+                return True
+        
+        # Check if page is very short (likely an error page)
+        if len(html_content.strip()) < 500:
+            # If it's a short page and contains 404, it's likely an error page
+            if "404" in html_content:
+                return True
+        
+        return False
+
     async def _detect_cloudflare_protection(self, tab) -> bool:
         """
         Detect if there's Cloudflare protection on the current page.
@@ -197,6 +320,8 @@ class NovelDownloader:
                 *selector, timeout=1, raise_exc=False
             )
             print(f"   ✅ Find Cloudflare Turnstile captcha element: {element}")
+            element_text = await element.text
+            print(f"   ✅ Cloudflare Turnstile captcha element text: {element_text}")
             # print(f"   ✅ Cloudflare Turnstile captcha element type: {type(element)}")
             if element:
                 if isinstance(element, list):
@@ -608,12 +733,12 @@ class NovelDownloader:
                     if page_content:
                         all_content.append(page_content)
                     else:
-                        print(f"❌ 章节下载失败: {chapter_title}")
+                        print(f"[ERROR] 章节下载失败: {chapter_title}")
                         print(f"   失败页面: {i + 1}/{len(pagination_urls)}")
                 
                 if not all_content:
-                    print(f"❌ 章节内容为空: {chapter_title}")
-                    print(f"💡 可能原因: 页面无法访问或内容提取失败")
+                    print(f"[ERROR] 章节内容为空: {chapter_title}")
+                    print(f"[INFO] 可能原因: 页面无法访问或内容提取失败")
                     return False
                 
                 # Combine all page content
@@ -633,7 +758,7 @@ class NovelDownloader:
                 return True
                 
             except Exception as e:
-                print(f"❌ 章节下载异常: {chapter_title}")
+                print(f"[ERROR] 章节下载异常: {chapter_title}")
                 print(f"   错误详情: {e}")
                 return False
     
@@ -650,7 +775,7 @@ class NovelDownloader:
         try:
             # Basic URL format validation
             if not url or not url.startswith(('http://', 'https://')):
-                return False, "❌ 无效的URL格式"
+                return False, "[ERROR] 无效的URL格式"
             
             # Try to access the URL with a quick check
             tab = await self.browser.new_tab()
@@ -661,23 +786,23 @@ class NovelDownloader:
                 
                 # Check for various error conditions
                 if not html_content or len(html_content) < 50:
-                    return False, "❌ 页面无法访问 - 可能网络连接问题或代理未开启"
+                    return False, "[ERROR] 页面无法访问 - 可能网络连接问题或代理未开启"
                 
                 if "page not found" in html_content.lower() or "404" in html_content:
-                    return False, "❌ 页面未找到 (404) - 章节链接可能已失效"
+                    return False, "[ERROR] 页面未找到 (404) - 章节链接可能已失效"
                 
                 if "access denied" in html_content.lower() or "forbidden" in html_content.lower():
-                    return False, "❌ 访问被拒绝 - 可能需要代理或网站限制访问"
+                    return False, "[ERROR] 访问被拒绝 - 可能需要代理或网站限制访问"
                 
                 if "timeout" in html_content.lower() or "timed out" in html_content.lower():
-                    return False, "❌ 页面访问超时 - 网络连接不稳定"
+                    return False, "[ERROR] 页面访问超时 - 网络连接不稳定"
                 
                 if "cloudflare" in html_content.lower() and "checking your browser" in html_content.lower():
-                    return False, "❌ 页面被Cloudflare保护 - 正在验证浏览器"
+                    return False, "[ERROR] 页面被Cloudflare保护 - 正在验证浏览器"
                 
                 # Check if content looks like an error page
                 if len(html_content) < 200 and any(keyword in html_content.lower() for keyword in ["error", "not found", "unavailable"]):
-                    return False, "❌ 页面返回错误信息 - 可能网站维护或链接失效"
+                    return False, "[ERROR] 页面返回错误信息 - 可能网站维护或链接失效"
                 
                 return True, ""
                 
@@ -688,7 +813,7 @@ class NovelDownloader:
                     pass
                     
         except Exception as e:
-            error_msg = f"❌ 页面访问失败: {str(e)}"
+            error_msg = f"[ERROR] 页面访问失败: {str(e)}"
             if "proxy" in str(e).lower() or "connection" in str(e).lower():
                 error_msg += " - 请检查代理设置"
             elif "timeout" in str(e).lower():
@@ -730,29 +855,13 @@ class NovelDownloader:
             
             # Check if we got valid HTML content
             if not html_content or len(html_content) < 100:
-                print(f"❌ 页面内容过短或为空")
+                print(f"[ERROR] 页面内容过短或为空")
                 print(f"   页面: {page_url}")
                 print(f"   内容预览: {html_content[:100] if html_content else '无内容'}")
                 return None
             
-            # Check for common error pages with specific error messages
-            if "page not found" in html_content.lower() or "404" in html_content:
-                print(f"❌ 页面未找到 (404)")
-                print(f"   页面: {page_url}")
-                print(f"💡 可能原因: 章节链接已失效，请重新解析章节")
-                return None
-            
-            if "access denied" in html_content.lower() or "forbidden" in html_content.lower():
-                print(f"❌ 访问被拒绝")
-                print(f"   页面: {page_url}")
-                print(f"💡 可能原因: 需要代理访问或网站限制访问")
-                return None
-            
-            if "timeout" in html_content.lower() or "timed out" in html_content.lower():
-                print(f"❌ 页面访问超时")
-                print(f"   页面: {page_url}")
-                print(f"💡 可能原因: 网络连接不稳定，请稍后重试")
-                return None
+            # Parse with lxml first to get tree object
+            tree = html.fromstring(html_content)
             
             # Check if content looks like HTML
             if not html_content.strip().startswith('<'):
@@ -769,8 +878,6 @@ class NovelDownloader:
                     print(f"Warning: Content doesn't appear to be HTML for page {page_num}: {html_content[:200]}")
                     return None
             
-            # Parse with lxml and apply XPath
-            tree = html.fromstring(html_content)
             content_elements = tree.xpath(self.content_xpath)
             
             # 添加调试信息
@@ -800,7 +907,7 @@ class NovelDownloader:
             return content_text.strip()
             
         except Exception as e:
-            print(f"❌ 页面下载异常: {chapter_title} (第{page_num}页)")
+            print(f"[ERROR] 页面下载异常: {chapter_title} (第{page_num}页)")
             print(f"   错误详情: {e}")
             return None
         finally:
@@ -837,7 +944,7 @@ class NovelDownloader:
             self.metadata_manager.save_chapter_metadata(
                 menu_url, chapters, self.chapter_xpath, self.content_xpath, 
                 self.chapter_pagination_xpath, self.chapter_list_pagination_xpath,
-                self.content_regex, self.string_replacements
+                self.content_regex, self.string_replacements, self.custom_hash
             )
             
             # Show first few chapters for debugging
@@ -873,41 +980,41 @@ class NovelDownloader:
             # Check for stored chapter information first (unless force_parse is True)
             if not force_parse:
                 print("Checking for stored chapter information...")
-                stored_chapters = self.metadata_manager.get_stored_chapters(menu_url)
+                stored_chapters = self.metadata_manager.get_stored_chapters(menu_url, self.custom_hash)
                 if stored_chapters:
-                    print(f"✅ Found stored chapter information with {len(stored_chapters)} chapters")
+                    print(f"[SUCCESS] Found stored chapter information with {len(stored_chapters)} chapters")
                     chapters = stored_chapters
                 else:
-                    print("📋 No stored chapter information found. Will parse from URL...")
+                    print("[INFO] No stored chapter information found. Will parse from URL...")
             
             # If no stored chapters or force_parse is True, parse from URL
             if not chapters:
-                print("🔍 Extracting chapter links from URL...")
+                print("[INFO] Extracting chapter links from URL...")
                 chapters = await self.get_chapter_links(menu_url)
                 if chapters:
-                    print(f"✅ Successfully parsed {len(chapters)} chapters from URL")
+                    print(f"[SUCCESS] Successfully parsed {len(chapters)} chapters from URL")
                     # Save the parsed chapters for future use
                     self.metadata_manager.save_chapter_metadata(
                         menu_url, chapters, self.chapter_xpath, self.content_xpath, 
                         self.chapter_pagination_xpath, self.chapter_list_pagination_xpath,
-                        self.content_regex, self.string_replacements
+                        self.content_regex, self.string_replacements, self.custom_hash
                     )
-                    print("💾 Chapter information saved for future downloads")
+                    print("[INFO] Chapter information saved for future downloads")
                 else:
-                    print("❌ No chapters found. Please check your XPath expressions.")
+                    print("[ERROR] No chapters found. Please check your XPath expressions.")
                     return {"total": 0, "downloaded": 0, "skipped": 0, "failed": 0, "error": "No chapters found"}
             
-            print(f"📚 Found {len(chapters)} chapters total")
+            print(f"[INFO] Found {len(chapters)} chapters total")
             
             # Get metadata hash for organizing chapters
-            metadata_hash = self.metadata_manager.get_metadata_hash(menu_url)
+            metadata_hash = self.metadata_manager.get_metadata_hash(menu_url, self.custom_hash)
             if metadata_hash:
-                print(f"📁 Organizing chapters in directory: chapters_{metadata_hash}/")
+                print(f"[INFO] Organizing chapters in directory: chapters_{metadata_hash}/")
             else:
-                print("📁 No metadata hash found, using default chapters directory")
+                print("[INFO] No metadata hash found, using default chapters directory")
             
             # Show first few chapters for debugging
-            print("📖 First 5 chapters:")
+            print("[INFO] First 5 chapters:")
             for i, chapter_info in enumerate(chapters[:5]):
                 if len(chapter_info) == 3:
                     # New format with index
@@ -918,7 +1025,7 @@ class NovelDownloader:
                 print(f"  {i+1}. {title} -> {url}")
             
             # Download chapters concurrently
-            print(f"⬇️  Starting download with {self.concurrency} concurrent connections...")
+            print(f"[INFO] Starting download with {self.concurrency} concurrent connections...")
             tasks = []
             for chapter_info in chapters:
                 if len(chapter_info) == 3:
@@ -931,15 +1038,15 @@ class NovelDownloader:
                 task = self.download_chapter(chapter_url, chapter_title, menu_url, metadata_hash)
                 tasks.append(task)
                 
-            print("⏳ Waiting for download tasks to complete...")
+            print("[INFO] Waiting for download tasks to complete...")
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            print("✅ Download tasks completed")
+            print("[SUCCESS] Download tasks completed")
             
             # Count results
             stats = {"total": len(chapters), "downloaded": 0, "skipped": 0, "failed": 0}
             for result in results:
                 if isinstance(result, Exception):
-                    print(f"❌ Exception in download task: {result}")
+                    print(f"[ERROR] Exception in download task: {result}")
                     stats["failed"] += 1
                 elif result is True:
                     stats["downloaded"] += 1
@@ -949,7 +1056,7 @@ class NovelDownloader:
             return stats
             
         except Exception as e:
-            print(f"❌ Error in download_novel: {e}")
+            print(f"[ERROR] Error in download_novel: {e}")
             import traceback
             traceback.print_exc()
             return {"total": 0, "downloaded": 0, "skipped": 0, "failed": 0}
